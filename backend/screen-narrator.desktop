@@ -1,0 +1,22 @@
+[Desktop Entry]
+Type=Application
+Name=Screen Narrator
+Comment=Read screen text and Kindle pages aloud
+Exec=simple-reader settings
+Icon=audio-headphones
+Terminal=false
+Categories=Accessibility;Utility;
+Actions=ToggleReading;StartReading;StopReading;
+X-Read-Aloud-Managed=true
+
+[Desktop Action ToggleReading]
+Name=Start / stop reading
+Exec=simple-reader toggle
+
+[Desktop Action StartReading]
+Name=Start reading
+Exec=simple-reader on
+
+[Desktop Action StopReading]
+Name=Stop reading
+Exec=simple-reader off

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Screen Narrator Settings
+Comment=Reading, voice and translation settings of Screen Narrator
+Type=Application
+Exec=screen-narrator-settings
+Icon=audio-headphones
+Terminal=false
+Categories=Accessibility;Settings;
+StartupWMClass=io.github.ubruckhaus.ScreenNarratorSettings

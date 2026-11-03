@@ -1,0 +1,1 @@
+Speech models and Python/system dependencies are obtained separately and retain their own licenses. No speech models, speaker recordings, credentials or user settings are included. The offline translator (NLLB-200, downloaded only on request) is CC-BY-NC 4.0: non-commercial use only.

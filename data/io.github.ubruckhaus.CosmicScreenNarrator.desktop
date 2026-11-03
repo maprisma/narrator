@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Screen Narrator
+Comment=Reads any window, PDF or Kindle page aloud
+Type=Application
+Exec=cosmic-narrator-applet
+Terminal=false
+Categories=COSMIC;
+Keywords=COSMIC;Applet;Narrator;OCR;TTS;Read aloud;
+Icon=audio-headphones-symbolic
+NoDisplay=true
+X-CosmicApplet=true
+X-HostWaylandDisplay=true
+X-OverflowPriority=10

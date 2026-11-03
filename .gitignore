@@ -1,0 +1,4 @@
+target/
+__pycache__/
+settings/build/
+settings/.dart_tool/
