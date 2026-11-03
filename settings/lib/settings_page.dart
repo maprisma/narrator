@@ -260,6 +260,21 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ],
       ),
+      if (step == null && ready && reading)
+        PrefRow(
+          title: 'Book',
+          subtitle: 'Re-read this page or switch to the focused window',
+          suffixes: [
+            OutlinedButton(
+              onPressed: () => _send({'command': 'reread'}),
+              child: const Text('Read again'),
+            ),
+            OutlinedButton(
+              onPressed: () => _send({'command': 'read'}),
+              child: const Text('Read active window'),
+            ),
+          ],
+        ),
       if (notice != null)
         PrefRow(title: 'Last problem', subtitle: '${notice['title']}: ${notice['text']}', error: true),
     ]);

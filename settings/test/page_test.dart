@@ -92,6 +92,16 @@ void main() {
     await tester.tap(find.text('Start'));
     await tester.pump();
     expect(bridge.sent.last, {'command': 'on'});
+    bridge.state['enabled'] = true;
+    await tester.pumpWidget(SettingsApp(bridge: bridge));
+    await tester.pump();
+    expect(find.text('Read again'), findsOneWidget);
+    expect(find.text('Read active window'), findsOneWidget);
+    expect(find.text('Pause'), findsOneWidget);
+    expect(find.text('Stop'), findsOneWidget);
+    await tester.tap(find.text('Read again'));
+    await tester.pump();
+    expect(bridge.sent.last, {'command': 'reread'});
     await tester.pumpWidget(const SizedBox());
   });
 }
