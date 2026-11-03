@@ -931,7 +931,7 @@ class Reader(QObject):
     def scan(self):
         if getattr(self, 'testing_voice', False) or not self.enabled or self.paused or self.scanning or self.menu.isVisible():
             return
-        if not self.settings['follow'] and self.last_text and self.status != 'Waiting for the reading window':
+        if not self.settings['follow'] and self.last_text and self.status not in ('Waiting for the reading window', 'Turning to next page…'):
             if self.target:
                 # No new pages, but closing the book still ends reading.
                 self.scanning = True
@@ -1134,9 +1134,28 @@ class Reader(QObject):
             if turned and time.monotonic() - turned > 3 and not self.is_speaking():
                 # A PDF page turn that changes nothing: the last page was read.
                 self.pdf_turned_at = None
+                self.page_turned_at = None
+                self.turn_retries = 0
                 self.set_enabled(False)
                 self.update('End of document')
                 return
+            if getattr(self, 'status', '') == 'Turning to next page…' and not self.is_speaking():
+                page_turned = getattr(self, 'page_turned_at', None)
+                if page_turned and time.monotonic() - page_turned >= 1.2:
+                    retries = getattr(self, 'turn_retries', 0)
+                    if retries < 2:
+                        self.turn_retries = retries + 1
+                        self.page_turned_at = time.monotonic()
+                        print(f'Reader retrying page turn ({self.turn_retries}/2): page unchanged',
+                              file=sys.stderr, flush=True)
+                        self.do_page_turn()
+                        return
+                    if time.monotonic() - page_turned >= 3:
+                        self.page_turned_at = None
+                        self.turn_retries = 0
+                        self.set_enabled(False)
+                        self.update('End of document')
+                        return
             if self.status == 'Waiting for the reading window' and not self.is_speaking():
                 self.on_page_finished()
             return
@@ -1168,7 +1187,17 @@ class Reader(QObject):
         except (OSError, ValueError, KeyError, StopIteration) as error:
             self.fail('Could not read OCR output: ' + str(error))
             return
-        if len(re.findall(r'\w', text)) < 12:
+        turning = (getattr(self, 'pdf_turned_at', None) is not None or
+                   getattr(self, 'page_turned_at', None) is not None or
+                   getattr(self, 'status', '') == 'Turning to next page…')
+        min_chars = 2 if turning and getattr(self, 'last_text', '') else 12
+        if len(re.findall(r'\w', text)) < min_chars:
+            if (turning and not self.is_speaking() and
+                    getattr(self, 'image_candidate', None) not in (None, getattr(self, 'ocr_image', None))):
+                # A blank or illustration page after a turn: move on to the next page.
+                self.ocr_image = getattr(self, 'image_candidate', None)
+                self.on_page_finished()
+                return
             if not self.is_speaking():
                 self.update('Waiting for readable text')
             return
@@ -1182,6 +1211,15 @@ class Reader(QObject):
             if just_turned and not self.is_speaking():
                 # Same text on the new page (e.g. two blank pages): nothing to read, turn on.
                 self.on_page_finished()
+                return
+            if getattr(self, 'status', '') == 'Turning to next page…' and not self.is_speaking():
+                page_turned = getattr(self, 'page_turned_at', None)
+                if page_turned and time.monotonic() - page_turned >= 1.2 and getattr(self, 'turn_retries', 0) < 2:
+                    self.turn_retries = getattr(self, 'turn_retries', 0) + 1
+                    self.page_turned_at = time.monotonic()
+                    print(f'Reader retrying page turn ({self.turn_retries}/2): text unchanged',
+                          file=sys.stderr, flush=True)
+                    self.do_page_turn()
                 return
             if getattr(self, 'status', '') == 'Waiting for the reading window' and not self.is_speaking():
                 self.on_page_finished()
@@ -1197,6 +1235,8 @@ class Reader(QObject):
             return
         self.last_text = text
         self.pdf_turned_at = None
+        self.page_turned_at = None
+        self.turn_retries = 0
         self.candidate = ''
         self.stop_speech()
         self.queue = page_chunks(text)
@@ -1448,6 +1488,12 @@ class Reader(QObject):
             self.update('Voice test complete')
             return
         if self.settings.get('auto_page_turn', True) and (self.is_kindle_target() or self.pdf_keys()):
+            for task in list(getattr(self, 'tasks', set()) - getattr(self, 'speech_tasks', set())):
+                task.cancel()
+            self.scanning = False
+            self.candidate = ''
+            if getattr(self, 'status', '') != 'Turning to next page…':
+                self.turn_retries = 0
             self.update('Turning to next page…')
             epoch = self.epoch
             QTimer.singleShot(100, lambda: self.do_page_turn() if self.epoch == epoch else None)
@@ -1461,7 +1507,7 @@ class Reader(QObject):
         keys = self.pdf_keys()
         # A page that continues below the window is scrolled first; otherwise next page.
         key = (keys[1] if getattr(self, 'pdf_cut_off', False) else keys[0]) if keys else 'Right'
-        if not re.fullmatch(r'0x[0-9a-fA-F]{1,16}', str(self.target)):
+        if not re.fullmatch(r'(?:0x)?[0-9a-fA-F]{1,64}', str(self.target)):
             self.update('Waiting for the reading window')
             return
         Task(self, [*DESKTOP, 'send-key', self.target, key], self.page_turn_sent, timeout=3)
@@ -1474,8 +1520,9 @@ class Reader(QObject):
             print('Reader page turn deferred: ' + err.strip(), file=sys.stderr, flush=True)
             self.update('Waiting for the reading window')
             return
+        self.page_turned_at = time.monotonic()
         if self.pdf_keys():
-            self.pdf_turned_at = time.monotonic()
+            self.pdf_turned_at = self.page_turned_at
         # Scan early; the second matching OCR capture still confirms stability.
         epoch = self.epoch
         QTimer.singleShot(250, lambda: self.scan() if self.epoch == epoch else None)

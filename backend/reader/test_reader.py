@@ -351,12 +351,63 @@ class PinnedWindowTests(unittest.TestCase):
 
     def test_page_turn_goes_to_the_book_without_a_focus_check(self):
         from reader import Reader
-        subject = SimpleNamespace(enabled=True, paused=False, epoch=7, target='0x123',
-            pdf_keys=lambda: None, update=Mock(), page_turn_sent=Mock())
+        for target in ('0x123', '42', 'a1b2c3d4'):
+            subject = SimpleNamespace(enabled=True, paused=False, epoch=7, target=target,
+                pdf_keys=lambda: None, update=Mock(), page_turn_sent=Mock())
+            with patch('reader.Task') as task:
+                Reader.do_page_turn(subject)
+            self.assertEqual(task.call_count, 1)
+            self.assertEqual(task.call_args.args[1][-3:], ['send-key', target, 'Right'])
+
+    def test_missed_kindle_page_turn_retries_then_stops_at_end(self):
+        import hashlib, time
+        from reader import Reader
+        digest = hashlib.sha256(b'same page').digest()
+        subject = SimpleNamespace(scanning=True, image_candidate=None, ocr_image=digest,
+            status='Turning to next page…', page_turned_at=time.monotonic() - 1.5,
+            turn_retries=0, is_speaking=lambda: False, do_page_turn=Mock(),
+            set_enabled=Mock(), update=Mock())
+        with patch('reader.Path.read_bytes', return_value=b'same page'):
+            Reader.prepared(subject, 0, '', '')
+            self.assertEqual(subject.turn_retries, 1)
+            subject.do_page_turn.assert_called_once()
+            subject.page_turned_at = time.monotonic() - 1.5
+            Reader.prepared(subject, 0, '', '')
+            self.assertEqual(subject.turn_retries, 2)
+            self.assertEqual(subject.do_page_turn.call_count, 2)
+            subject.page_turned_at = time.monotonic() - 3.5
+            Reader.prepared(subject, 0, '', '')
+            subject.set_enabled.assert_called_once_with(False)
+            subject.update.assert_called_once_with('End of document')
+
+    def test_turning_scans_new_page_even_with_follow_off(self):
+        from reader import Reader
+        subject = SimpleNamespace(enabled=True, paused=False, scanning=False, menu=Mock(),
+            settings={'follow': False}, last_text='Read page', got_window=Mock(), target='0x123',
+            status='Turning to next page…')
+        subject.menu.isVisible.return_value = False
         with patch('reader.Task') as task:
-            Reader.do_page_turn(subject)
-        self.assertEqual(task.call_count, 1)
-        self.assertEqual(task.call_args.args[1][-3:], ['send-key', '0x123', 'Right'])
+            Reader.scan(subject)
+        task.assert_called_once()
+        self.assertIs(task.call_args.args[2], subject.got_window)
+
+    def test_short_chapter_heading_and_illustration_page_after_turn(self):
+        from reader import Reader
+        subject = SimpleNamespace(scanning=True, last_text='Previous chapter text.', candidate='',
+            status='Turning to next page…', page_turned_at=1.0, capture_stable=True,
+            image_candidate=b'new', ocr_image=b'old', is_speaking=lambda: False,
+            stop_speech=Mock(), settings={'highlight': False}, pump_pipeline=Mock(),
+            on_page_finished=Mock(), update=Mock())
+        with patch('reader.Path.read_text'), patch('reader.visible_ocr', return_value=('Chapter 4', '')):
+            Reader.recognized(subject, 0, '', '')
+        subject.pump_pipeline.assert_called_once()
+        self.assertEqual(subject.last_text, 'Chapter 4')
+        # A blank/illustration page after a turn moves on to the next page instead of stalling.
+        subject.status = 'Turning to next page…'
+        subject.image_candidate = b'illustration'
+        with patch('reader.Path.read_text'), patch('reader.visible_ocr', return_value=('', '')):
+            Reader.recognized(subject, 0, '', '')
+        subject.on_page_finished.assert_called_once()
 
     def test_deferred_page_turn_resumes_after_focus_returns(self):
         from reader import Reader

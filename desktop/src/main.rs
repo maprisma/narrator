@@ -30,7 +30,8 @@ use zbus::{Connection, interface};
 const NAME: &str = "io.github.ubruckhaus.ScreenNarrator";
 const PATH: &str = "/io/github/ubruckhaus/ScreenNarrator";
 // How long a page-turn key may wait for the book window to take the focus it lends.
-const FOCUS_WAIT: Duration = Duration::from_millis(300);
+const FOCUS_WAIT: Duration = Duration::from_millis(500);
+const FOCUS_SETTLE: Duration = Duration::from_millis(40);
 const TOOL_TIMEOUT: Duration = Duration::from_secs(5);
 const SELECT_TIMEOUT: Duration = Duration::from_secs(90);
 
@@ -328,12 +329,15 @@ impl Desktop {
                 tokio::time::sleep(Duration::from_millis(20)).await;
                 waited += Duration::from_millis(20);
             }
+            if self.focused().as_deref() == Some(address.as_str()) {
+                tokio::time::sleep(FOCUS_SETTLE).await;
+            }
         }
         // The waits let reading stop, the book leave the screen or the focus move meanwhile:
         // the focus is checked last, right before the key.
         ok &= self.shown(&address) && reading().await && self.focused().as_deref() == Some(address.as_str());
         if ok {
-            ok = tool(&["wtype", "-k", &key], TOOL_TIMEOUT).await.is_some();
+            ok = tool(&["wtype", "-s", "20", "-k", &key], TOOL_TIMEOUT).await.is_some();
         }
         if lent {
             // Let the key reach the book before the focus goes back, and only give it back if
