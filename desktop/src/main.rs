@@ -382,6 +382,11 @@ fn main() {
 
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("tokio runtime");
     let result: zbus::Result<()> = runtime.block_on(async {
+        let mut waited = Duration::ZERO;
+        while !shared.lock().map(|s| s.ready).unwrap_or(true) && !wayland_thread.is_finished() && waited < Duration::from_secs(5) {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            waited += Duration::from_millis(20);
+        }
         let desktop = Desktop { shared, commands: Mutex::new(sender) };
         let _connection = zbus::connection::Builder::session()?
             .name(NAME)?

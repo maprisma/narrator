@@ -1065,29 +1065,17 @@ class Reader(QObject):
                 geom = f'{x},{y} {width}x{height}'
         self.capture_area = tuple(map(int, re.findall(r'-?\d+', geom)))
         self.scanning = True
-        self.capture_highlight = (self.epoch, self.playing_file, self.overlay.last_payload)
-        self.overlay.show([])
-        epoch = self.epoch
-        def capture():
-            if self.epoch == epoch:
-                # A chosen area is a part of the screen; otherwise the book window's own picture,
-                # so windows over it do not end up in the text.
-                if self.custom_area:
-                    args = ['capture', geom]
-                else:
-                    args = ['capture-window', self.target, geom]
-                Task(self, [*DESKTOP, *args, RUNTIME / 'window.png'], self.captured, timeout=5)
-        if self.capture_highlight[2] and isinstance(self.capture_highlight[2], str) and json.loads(self.capture_highlight[2]).get('rectangles'):
-            # Let the compositor present the hidden overlay before fingerprinting.
-            QTimer.singleShot(35, capture)
+        # A chosen area is a part of the screen; otherwise the book window's own picture,
+        # so windows over it do not end up in the text. The highlight stays: the window's
+        # picture has no overlay in it, and the desktop service hides it itself for a
+        # screen capture (hiding it here on every scan made it flicker).
+        if self.custom_area:
+            args = ['capture', geom]
         else:
-            capture()
+            args = ['capture-window', self.target, geom]
+        Task(self, [*DESKTOP, *args, RUNTIME / 'window.png'], self.captured, timeout=5)
 
     def captured(self, code, out, err):
-        epoch, playing_file, payload = self.capture_highlight
-        if payload and epoch == self.epoch and playing_file == self.playing_file:
-            highlight = json.loads(payload)
-            self.overlay.show(highlight['rectangles'], highlight['target'])
         if code:
             self.scanning = False
             self.fail('Screen capture failed: ' + err)
@@ -1507,7 +1495,7 @@ class Reader(QObject):
         keys = self.pdf_keys()
         # A page that continues below the window is scrolled first; otherwise next page.
         key = (keys[1] if getattr(self, 'pdf_cut_off', False) else keys[0]) if keys else 'Right'
-        if not re.fullmatch(r'(?:0x)?[0-9a-fA-F]{1,64}', str(self.target)):
+        if not re.fullmatch(r'[0-9A-Za-z_-]{1,64}', str(self.target)):
             self.update('Waiting for the reading window')
             return
         Task(self, [*DESKTOP, 'send-key', self.target, key], self.page_turn_sent, timeout=3)

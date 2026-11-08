@@ -82,6 +82,8 @@ impl Window {
 #[derive(Default)]
 pub struct Snapshot {
     pub windows: Vec<Window>,
+    // The compositor has listed the windows once: before that every window would look closed.
+    pub ready: bool,
 }
 
 impl Snapshot {
@@ -142,7 +144,7 @@ pub fn runtime_dir() -> PathBuf {
 
 pub fn run(shared: Shared, commands: Channel<Command>) -> Result<(), String> {
     let conn = Connection::connect_to_env().map_err(|e| format!("no Wayland display: {e}"))?;
-    let (globals, queue) = registry_queue_init::<App>(&conn).map_err(|e| e.to_string())?;
+    let (globals, mut queue) = registry_queue_init::<App>(&conn).map_err(|e| e.to_string())?;
     let qh = queue.handle();
     let registry = RegistryState::new(&globals);
     let toplevels =
@@ -167,6 +169,16 @@ pub fn run(shared: Shared, commands: Channel<Command>) -> Result<(), String> {
         hidden: false,
         shared,
     };
+
+    // Load the window list before the D-Bus side answers: a fresh start (the applet restarts
+    // this service) would otherwise answer {} for the book and the reader would stop.
+    for _ in 0..3 {
+        queue.roundtrip(&mut app).map_err(|e| e.to_string())?;
+    }
+    app.publish(&qh);
+    if let Ok(mut shared) = app.shared.lock() {
+        shared.ready = true;
+    }
 
     let mut event_loop: EventLoop<App> = EventLoop::try_new().map_err(|e| e.to_string())?;
     let handle: LoopHandle<App> = event_loop.handle();

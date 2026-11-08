@@ -351,7 +351,7 @@ class PinnedWindowTests(unittest.TestCase):
 
     def test_page_turn_goes_to_the_book_without_a_focus_check(self):
         from reader import Reader
-        for target in ('0x123', '42', 'a1b2c3d4'):
+        for target in ('0x123', '42', 'a1b2c3d4', 'ys5HHyprUKKV8GlnoU4fZ6a0et0HUg7X'):
             subject = SimpleNamespace(enabled=True, paused=False, epoch=7, target=target,
                 pdf_keys=lambda: None, update=Mock(), page_turn_sent=Mock())
             with patch('reader.Task') as task:
