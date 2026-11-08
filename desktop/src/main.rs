@@ -1,4 +1,4 @@
-// Screen Narrator's desktop side on COSMIC. The reader's helper (cosmic_desktop.py) calls
+// Maprisma Narrator's desktop side on COSMIC. The reader's helper (cosmic_desktop.py) calls
 // this D-Bus service for the focused window, screenshots, an area to drag and page-turn
 // keys; it is the same interface the GNOME extension offered, so the reader is unchanged.
 // It also draws the passage highlight (highlight.json) over the book window.
@@ -27,8 +27,8 @@ use wayland::{Command, Shared, Snapshot};
 use zbus::message::Header;
 use zbus::{Connection, interface};
 
-const NAME: &str = "io.github.ubruckhaus.ScreenNarrator";
-const PATH: &str = "/io/github/ubruckhaus/ScreenNarrator";
+const NAME: &str = "com.maprisma.Narrator.Desktop";
+const PATH: &str = "/com/maprisma/Narrator/Desktop";
 // How long a page-turn key may wait for the book window to take the focus it lends.
 const FOCUS_WAIT: Duration = Duration::from_millis(500);
 const FOCUS_SETTLE: Duration = Duration::from_millis(40);
@@ -104,15 +104,15 @@ async fn tool(argv: &[&str], timeout: Duration) -> Option<Vec<u8>> {
     match tokio::time::timeout(timeout, child).await {
         Ok(Ok(out)) if out.status.success() => Some(out.stdout),
         Ok(Ok(out)) => {
-            eprintln!("[Screen Narrator] {} failed: {}", argv[0], String::from_utf8_lossy(&out.stderr).trim());
+            eprintln!("[Maprisma Narrator] {} failed: {}", argv[0], String::from_utf8_lossy(&out.stderr).trim());
             None
         }
         Ok(Err(error)) => {
-            eprintln!("[Screen Narrator] {} could not run: {error}", argv[0]);
+            eprintln!("[Maprisma Narrator] {} could not run: {error}", argv[0]);
             None
         }
         Err(_) => {
-            eprintln!("[Screen Narrator] {} took too long", argv[0]);
+            eprintln!("[Maprisma Narrator] {} took too long", argv[0]);
             None
         }
     }
@@ -232,7 +232,7 @@ impl Desktop {
     }
 }
 
-#[interface(name = "io.github.ubruckhaus.ScreenNarrator.Desktop")]
+#[interface(name = "com.maprisma.Narrator.Desktop")]
 impl Desktop {
     fn active_window(&self) -> String {
         self.snapshot(|s| s.focused().map_or("{}".into(), |w| w.json().to_string()))
@@ -256,11 +256,11 @@ impl Desktop {
     ) -> bool {
         let file = capture_file();
         if geometry(&area).is_none() || Path::new(&path) != file {
-            eprintln!("[Screen Narrator] capture refused: not the reader's capture: {area} {path}");
+            eprintln!("[Maprisma Narrator] capture refused: not the reader's capture: {area} {path}");
             return false;
         }
         if !reading().await || !from_reader(connection, &header).await {
-            eprintln!("[Screen Narrator] capture refused: reading is off or not asked by the installed reader");
+            eprintln!("[Maprisma Narrator] capture refused: reading is off or not asked by the installed reader");
             return false;
         }
         self.capture_area(&area, &file).await
@@ -276,17 +276,17 @@ impl Desktop {
     ) -> bool {
         let file = capture_file();
         let Some(area) = geometry(&area).filter(|_| Path::new(&path) == file) else {
-            eprintln!("[Screen Narrator] window capture refused: not the reader's capture: {area} {path}");
+            eprintln!("[Maprisma Narrator] window capture refused: not the reader's capture: {area} {path}");
             return false;
         };
         if !reading().await || !from_reader(connection, &header).await {
-            eprintln!("[Screen Narrator] window capture refused: reading is off or not asked by the installed reader");
+            eprintln!("[Maprisma Narrator] window capture refused: reading is off or not asked by the installed reader");
             return false;
         }
         match self.crop_window(&address, area, &file).await {
             Ok(()) => true,
             Err(error) => {
-                eprintln!("[Screen Narrator] window capture failed: {error}");
+                eprintln!("[Maprisma Narrator] window capture failed: {error}");
                 false
             }
         }
@@ -363,10 +363,10 @@ impl Desktop {
 fn open_settings() {
     let mut candidates: Vec<PathBuf> = Vec::new();
     if let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) {
-        candidates.push(dir.join("screen-narrator-settings"));
+        candidates.push(dir.join("maprisma-narrator"));
     }
-    candidates.push(home().join(".local/share/cosmic-narrator/settings/screen-narrator-settings"));
-    let program = candidates.into_iter().find(|p| p.is_file()).unwrap_or_else(|| "screen-narrator-settings".into());
+    candidates.push(home().join(".local/share/maprisma-narrator/settings/maprisma-narrator"));
+    let program = candidates.into_iter().find(|p| p.is_file()).unwrap_or_else(|| "maprisma-narrator".into());
     let _ = std::process::Command::new(program)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -375,6 +375,14 @@ fn open_settings() {
 }
 
 fn main() {
+    // Ends with the applet that started it, also when the applet is killed (a panel restart):
+    // otherwise an old service would keep running beside the new one.
+    unsafe {
+        libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+    }
+    if std::os::unix::process::parent_id() == 1 {
+        return;
+    }
     let shared: Shared = Arc::new(Mutex::new(Snapshot::default()));
     let (sender, receiver) = wayland::channel();
     let wayland_shared = shared.clone();
@@ -398,13 +406,13 @@ fn main() {
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
         if let Ok(Err(error)) = wayland_thread.join() {
-            eprintln!("[Screen Narrator] Wayland: {error}");
+            eprintln!("[Maprisma Narrator] Wayland: {error}");
         }
         Ok(())
     });
     match result {
-        Err(zbus::Error::NameTaken) => eprintln!("[Screen Narrator] the desktop service runs already"),
-        Err(error) => eprintln!("[Screen Narrator] desktop service: {error}"),
+        Err(zbus::Error::NameTaken) => eprintln!("[Maprisma Narrator] the desktop service runs already"),
+        Err(error) => eprintln!("[Maprisma Narrator] desktop service: {error}"),
         Ok(()) => {}
     }
     let _ = std::io::stderr().flush();

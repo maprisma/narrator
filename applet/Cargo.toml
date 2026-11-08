@@ -1,9 +1,9 @@
 [package]
-name = "cosmic-narrator-applet"
+name = "maprisma-narrator-applet"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "COSMIC panel applet for Screen Narrator: start, pause and stop reading aloud"
+description = "COSMIC panel applet for Maprisma Narrator: start, pause and stop reading aloud"
 
 [dependencies]
 serde_json = "1"

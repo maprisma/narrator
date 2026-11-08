@@ -1,9 +1,9 @@
 [package]
-name = "cosmic-narrator-desktop"
+name = "maprisma-narrator-desktop"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "Screen Narrator's desktop side on COSMIC: windows, captures, area selection, page-turn keys, passage highlight"
+description = "Maprisma Narrator's desktop side on COSMIC: windows, captures, area selection, page-turn keys, passage highlight"
 
 [dependencies]
 cosmic-client-toolkit = { git = "https://github.com/pop-os/cosmic-protocols", rev = "c0cff4d" }

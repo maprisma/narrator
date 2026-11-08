@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:screen_narrator_settings/bridge.dart';
-import 'package:screen_narrator_settings/main.dart';
+import 'package:maprisma_narrator/bridge.dart';
+import 'package:maprisma_narrator/main.dart';
 
 class FakeBridge extends Bridge {
   FakeBridge(this.state) : super(script: '/dev/null');

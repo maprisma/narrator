@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Maprisma Narrator
+Comment=Read any window, PDF or Kindle page aloud, translated if you like
+Type=Application
+Exec=maprisma-narrator
+Icon=audio-headphones
+Terminal=false
+Categories=Accessibility;Utility;
+StartupWMClass=com.maprisma.Narrator

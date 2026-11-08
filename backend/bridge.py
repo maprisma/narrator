@@ -1,4 +1,4 @@
-"""One-shot private IPC and first-use setup for Screen Narrator."""
+"""One-shot private IPC and first-use setup for Maprisma Narrator."""
 import json
 import os
 import signal

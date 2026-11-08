@@ -51,9 +51,9 @@ class TranslatorTests(unittest.TestCase):
                 translator.translate({'text': 'Hallo.', 'settings': dict(LLM, translator_endpoint=endpoint)})
 
     def test_offline_translator_requires_installed_model(self):
-        with patch('translator.MODEL_DIR', Path('/nonexistent-screen-narrator-nllb')):
+        with patch('translator.MODEL_DIR', Path('/nonexistent-maprisma-narrator-nllb')):
             with self.assertRaisesRegex(ValueError, 'Install'):
-                translator.translate_nllb('de', 'ja', 'Hallo.', folder=Path('/nonexistent-screen-narrator-nllb'))
+                translator.translate_nllb('de', 'ja', 'Hallo.', folder=Path('/nonexistent-maprisma-narrator-nllb'))
 
 
 class ReaderTranslationTests(unittest.TestCase):

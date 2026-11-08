@@ -1,3 +1,3 @@
-# Screen Narrator Settings
+# Maprisma Narrator
 
-Flutter desktop settings and status window (`screen-narrator-settings`) for Screen Narrator. Talks to `backend/bridge.py` over one-line JSON requests.
+Flutter desktop settings and status window (`maprisma-narrator`) for Maprisma Narrator. Talks to `backend/bridge.py` over one-line JSON requests.

@@ -234,7 +234,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final canStart = ready && !reading && state['can_start'] != false && step == null;
     return PrefGroup(children: [
       PrefRow(
-        title: state['status'] as String? ?? 'Screen Narrator',
+        title: state['status'] as String? ?? 'Maprisma Narrator',
         subtitle: step?.text ?? (truthy(window) ? 'Reading: $window' : ''),
         suffixes: [
           if (truthy(state['setup_busy']))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local, active-window OCR narration; the Screen Narrator COSMIC applet is its bar icon and desktop side."""
+"""Local, active-window OCR narration; the Maprisma Narrator panel applet is its bar icon and desktop side."""
 import difflib
 import hashlib
 import importlib.util
@@ -37,7 +37,7 @@ RUNTIME = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}')) / 
 # The focused window, screenshots, area selection and keys come from the COSMIC desktop service (cosmic_desktop.py).
 DESKTOP = [sys.executable, str(Path(__file__).with_name('cosmic_desktop.py'))]
 # Focused when reading starts, but never the book: the settings window and the panel.
-NOT_BOOKS = {'io.github.ubruckhaus.ScreenNarratorSettings', 'screen-narrator-settings', 'com.system76.CosmicPanel',
+NOT_BOOKS = {'com.maprisma.Narrator', 'maprisma-narrator', 'com.system76.CosmicPanel',
              'com.system76.CosmicLauncher', 'com.system76.CosmicAppLibrary'}
 QWEN_MODEL_DIR = Path(os.environ.get('QWEN_TTS_MODEL_DIR', DATA / 'models/Qwen3-TTS-1.7B'))
 VOICES = {
@@ -230,7 +230,7 @@ def desktop_notify(summary, body='', icon=None, timeout=None, level='info'):
         NOTICES.append(dict(id=max(int(time.time() * 1000), (NOTICES[-1]['id'] + 1) if NOTICES else 0), time=time.time(), level=level,
                             title=plain_text(summary, 120), text=text))
         del NOTICES[:-5]
-    args = ['notify-send', '-a', 'Screen Narrator']
+    args = ['notify-send', '-a', 'Maprisma Narrator']
     if icon:
         args += ['-i', icon]
     if timeout:
@@ -545,7 +545,7 @@ class Reader(QObject):
             self.speed_actions[rate] = action
         self.menu.addAction('Settings…', self.show_settings)
         self.menu.addSeparator()
-        self.menu.addAction('Quit Screen Narrator', self.app.quit)
+        self.menu.addAction('Quit Maprisma Narrator', self.app.quit)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.scan)
@@ -704,7 +704,7 @@ class Reader(QObject):
         if message != self.last_error:
             # Qt tray messages set NeedsAttention and a themed attention icon.
             # The desktop shell crashed loading that icon after a Piper error.
-            desktop_notify('Screen Narrator', message, level='error')
+            desktop_notify('Maprisma Narrator', message, level='error')
         self.last_error = message
         if getattr(self, 'testing_voice', False):
             self.set_enabled(False)
@@ -751,7 +751,7 @@ class Reader(QObject):
         if enabled and not getattr(self, 'testing_voice', False):
             problems = [c['problem'] for c in self.readiness_checks() if not c['ok']]
             if problems:
-                desktop_notify('Screen Narrator cannot start', problems[0], level='error')
+                desktop_notify('Maprisma Narrator cannot start', problems[0], level='error')
                 raise ValueError(problems[0])
         if getattr(self, 'preview_original', None) is not None:
             self.settings = self.preview_original
@@ -772,7 +772,7 @@ class Reader(QObject):
         self.image_candidate = self.ocr_image = None
         self.update('Looking for text…' if self.enabled else 'Off')
         if notify or was != self.enabled:
-            msg = 'Screen Narrator: ON' if self.enabled else 'Screen Narrator: OFF'
+            msg = 'Maprisma Narrator: ON' if self.enabled else 'Maprisma Narrator: OFF'
             desktop_notify(msg, icon='audio-headphones', timeout=1500)
         if self.enabled:
             self.timer.start()
@@ -836,7 +836,7 @@ class Reader(QObject):
     def select_area(self):
         self.stop_speech()
         self.update('Select reading area with mouse…')
-        desktop_notify('Screen Narrator', 'Drag a box around the reading area with your mouse (Esc to cancel)',
+        desktop_notify('Maprisma Narrator', 'Drag a box around the reading area with your mouse (Esc to cancel)',
                icon='edit-select-all', timeout=4000)
         # 150ms delay lets the bar menu close before the extension takes the pointer
         QTimer.singleShot(150, lambda: Task(self, [*DESKTOP, 'select-area'], self.area_selected, timeout=95))
@@ -844,7 +844,7 @@ class Reader(QObject):
     def area_selected(self, code, out, err):
         if code or not out.strip():
             self.update('Looking for text…' if self.enabled else 'Off')
-            desktop_notify('Screen Narrator', 'Area selection cancelled', icon='dialog-information', timeout=2000)
+            desktop_notify('Maprisma Narrator', 'Area selection cancelled', icon='dialog-information', timeout=2000)
             return
         match = re.match(r'^(\d+),(\d+)\s+(\d+)x(\d+)$', out.strip())
         if not match:
@@ -853,7 +853,7 @@ class Reader(QObject):
         x, y, w, h = map(int, match.groups())
         if w < 20 or h < 20:
             self.update('Looking for text…' if self.enabled else 'Off')
-            desktop_notify('Screen Narrator', 'Selected area was too small. Drag a box over the text to read.', level='warning',
+            desktop_notify('Maprisma Narrator', 'Selected area was too small. Drag a box over the text to read.', level='warning',
                    icon='dialog-warning', timeout=2500)
             return
 
@@ -900,7 +900,7 @@ class Reader(QObject):
         else:
             msg = f'Reading area set: {w}×{h} px'
 
-        desktop_notify('Screen Narrator', msg, icon='edit-select-all', timeout=2000)
+        desktop_notify('Maprisma Narrator', msg, icon='edit-select-all', timeout=2000)
         self.update()
         if not self.enabled:
             self.set_enabled(True, notify=True)
@@ -914,7 +914,7 @@ class Reader(QObject):
             self.settings['kindle_area'] = None
             self.save()
         if had_area:
-            desktop_notify('Screen Narrator', 'Reading area reset to default', icon='view-fullscreen', timeout=1500)
+            desktop_notify('Maprisma Narrator', 'Reading area reset to default', icon='view-fullscreen', timeout=1500)
             self.update()
             if self.enabled:
                 self.read_again()
@@ -967,7 +967,7 @@ class Reader(QObject):
         print(f'Reader target closed: {self.target}', file=sys.stderr, flush=True)
         self.scanning = False
         self.set_enabled(False)
-        desktop_notify('Screen Narrator', 'Stopped: the reading window was closed', timeout=2000)
+        desktop_notify('Maprisma Narrator', 'Stopped: the reading window was closed', timeout=2000)
 
     def check_window_focus(self, code, out, err):
         if code:
@@ -1870,7 +1870,7 @@ def main():
             try:
                 client.connect(str(RUNTIME / 'control.sock'))
             except OSError:
-                print('Screen Narrator is not running.', file=sys.stderr)
+                print('Maprisma Narrator is not running.', file=sys.stderr)
                 return 1
             request = {'command': sys.argv[1]}
             if len(sys.argv) > 2:
@@ -1880,7 +1880,7 @@ def main():
         return 0
     app = QApplication([])
     app.setApplicationName('simple-reader')
-    app.setApplicationDisplayName('Screen Narrator')
+    app.setApplicationDisplayName('Maprisma Narrator')
     app.setQuitOnLastWindowClosed(False)
     lock = QLockFile(str(RUNTIME / 'reader.lock'))
     if not lock.tryLock(0):

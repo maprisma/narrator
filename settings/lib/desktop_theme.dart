@@ -9,7 +9,7 @@ import 'package:flutter/services.dart';
 const fallbackAccent = Color(0xFF3584E4);
 
 class DesktopTheme {
-  DesktopTheme({MethodChannel? channel}) : _channel = channel ?? const MethodChannel('screen_narrator/theme');
+  DesktopTheme({MethodChannel? channel}) : _channel = channel ?? const MethodChannel('maprisma_narrator/theme');
 
   final MethodChannel _channel;
   final accent = ValueNotifier<Color?>(null);

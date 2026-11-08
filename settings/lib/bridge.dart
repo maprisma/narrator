@@ -8,7 +8,7 @@ import 'dart:io';
 typedef Json = Map<String, dynamic>;
 
 /// The bridge script: `$SCREEN_NARRATOR_BACKEND/bridge.py` when that variable names the
-/// backend directory, otherwise `~/.local/share/cosmic-narrator/backend/bridge.py`.
+/// backend directory, otherwise `~/.local/share/maprisma-narrator/backend/bridge.py`.
 String resolveBridgeScript([Map<String, String>? environment]) {
   final env = environment ?? Platform.environment;
   final backend = env['SCREEN_NARRATOR_BACKEND'];
@@ -16,7 +16,7 @@ String resolveBridgeScript([Map<String, String>? environment]) {
     return '${backend.replaceFirst(RegExp(r'/+$'), '')}/bridge.py';
   }
   final home = env['HOME'] ?? '';
-  return '$home/.local/share/cosmic-narrator/backend/bridge.py';
+  return '$home/.local/share/maprisma-narrator/backend/bridge.py';
 }
 
 /// The last line of the bridge's output as a JSON object, like bridge.js
@@ -107,7 +107,7 @@ Step? nextStep(Json state) {
     }
     final installs = _hasItems(missing) ? ' It installs ${(missing as List).join(', ')}.' : '';
     return Step(
-      text: 'Screen Narrator needs its reader, a voice and text recognition.$installs',
+      text: 'Maprisma Narrator needs its reader, a voice and text recognition.$installs',
       label: 'Set up automatically',
       payload: payload,
     );

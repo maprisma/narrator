@@ -42,7 +42,7 @@ use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
 const HIGHLIGHT_POLL: Duration = Duration::from_millis(150);
-// .screen-narrator-highlight of the GNOME extension: a soft amber box, 2 px around the passage.
+// .maprisma-narrator-highlight of the GNOME extension: a soft amber box, 2 px around the passage.
 const FILL: [u8; 4] = premultiply(255, 213, 79, 0.22);
 const BORDER: [u8; 4] = premultiply(255, 193, 7, 0.6);
 const GROW: i32 = 2;
@@ -326,7 +326,7 @@ impl App {
                 qh,
                 surface,
                 Layer::Overlay,
-                Some("screen-narrator-highlight"),
+                Some("maprisma-narrator-highlight"),
                 Some(&output),
             );
             layer.set_anchor(Anchor::TOP | Anchor::BOTTOM | Anchor::LEFT | Anchor::RIGHT);

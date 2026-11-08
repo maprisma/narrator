@@ -121,14 +121,14 @@ def managed_service(text):
 
 def install_launcher(backup):
     """Preserve the desktop ID and command used by existing shortcut bindings."""
-    template = (ROOT / 'screen-narrator.desktop').read_text()
+    template = (ROOT / 'maprisma-narrator.desktop').read_text()
     launcher = Path.home() / '.local/bin/simple-reader'
     desktop = Path.home() / '.local/share/applications/simple-reader.desktop'
     for path in (launcher, desktop):
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
             shutil.copy2(path, backup / path.name)
-    launcher.write_text('#!/usr/bin/env bash\n# Managed by ubruckhaus.simple-reader (Screen Narrator for COSMIC)\nexec ' +
+    launcher.write_text('#!/usr/bin/env bash\n# Managed by ubruckhaus.simple-reader (Maprisma Narrator)\nexec ' +
                         shlex.quote(str(DATA / 'venv/bin/python')) + ' ' +
                         shlex.quote(str(DATA / 'app/reader.py')) + ' "$@"\n')
     launcher.chmod(0o755)
@@ -187,9 +187,9 @@ def install(language, backend_only=False, engine=None, ocr_language=None, transl
         if existing:
             shutil.copy2(UNIT, backup / 'ocrvox.service')
         else:
-            UNIT.write_text('''# Managed by ubruckhaus.simple-reader (Screen Narrator for COSMIC)
+            UNIT.write_text('''# Managed by ubruckhaus.simple-reader (Maprisma Narrator)
 [Unit]
-Description=Screen Narrator OCR and speech
+Description=Maprisma Narrator OCR and speech
 PartOf=graphical-session.target
 After=graphical-session.target
 [Service]
@@ -211,7 +211,7 @@ UMask=0077
             # Keep a user-chosen Qwen model folder across upgrades.
             kept = [line for line in override.read_text().splitlines()
                     if line.startswith('Environment=QWEN_TTS_MODEL_DIR=')][-1:]
-        override_text = '''# Managed by ubruckhaus.simple-reader (Screen Narrator for COSMIC)
+        override_text = '''# Managed by ubruckhaus.simple-reader (Maprisma Narrator)
 [Service]
 ExecStart=
 ExecStart=%h/.local/share/kindle-reader/venv/bin/python %h/.local/share/kindle-reader/app/reader.py

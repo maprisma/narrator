@@ -1,11 +1,11 @@
-// Screen Narrator for COSMIC: the headphones in the panel. Left click opens the menu
+// Maprisma Narrator: the headphones in the panel. Left click opens the menu
 // (Start / Pause / Stop, what needs setting up, reading area, speed, settings); right
 // click starts or stops reading, middle click pauses. A green line under the icon while
 // reading, yellow while paused.
 //
 // The reader is a user service (ocrvox.service, set up from the menu); the applet talks
 // to it through backend/bridge.py like the GNOME extension did, and keeps the desktop
-// service (cosmic-narrator-desktop: windows, screenshots, keys, highlight) running.
+// service (maprisma-narrator-desktop: windows, screenshots, keys, highlight) running.
 
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -24,13 +24,13 @@ use cosmic::{Element, theme};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-const APP_ID: &str = "io.github.ubruckhaus.CosmicScreenNarrator";
+const APP_ID: &str = "io.github.ubruckhaus.CosmicMaprismaNarrator";
 const ICON: &str = "audio-headphones-symbolic";
 const MIN_SPEED: f32 = 0.6;
 const MAX_SPEED: f32 = 2.0;
 const POPUP_WIDTH: f32 = 360.0;
 const RESTART_DELAY: Duration = Duration::from_secs(5);
-static AUTOSIZE_ID: LazyLock<Id> = LazyLock::new(|| Id::new("screen-narrator-autosize"));
+static AUTOSIZE_ID: LazyLock<Id> = LazyLock::new(|| Id::new("maprisma-narrator-autosize"));
 
 const GREEN: Color = Color::from_rgb(0x33 as f32 / 255.0, 0xd1 as f32 / 255.0, 0x7a as f32 / 255.0);
 const AMBER: Color = Color::from_rgb(0xf6 as f32 / 255.0, 0xd3 as f32 / 255.0, 0x2d as f32 / 255.0);
@@ -53,7 +53,7 @@ fn data_home() -> PathBuf {
 fn bridge_script() -> PathBuf {
     std::env::var_os("SCREEN_NARRATOR_BACKEND")
         .map(PathBuf::from)
-        .unwrap_or_else(|| data_home().join("cosmic-narrator/backend"))
+        .unwrap_or_else(|| data_home().join("maprisma-narrator/backend"))
         .join("bridge.py")
 }
 
@@ -152,7 +152,7 @@ fn next_step(state: &Value) -> Option<Step> {
         }
         let extra = if missing.is_empty() { String::new() } else { format!(" It installs {}.", missing.join(", ")) };
         return Some(Step {
-            text: format!("Screen Narrator needs its reader, a voice and text recognition.{extra}"),
+            text: format!("Maprisma Narrator needs its reader, a voice and text recognition.{extra}"),
             label: "Set up automatically".into(),
             payload,
         });
@@ -187,7 +187,7 @@ fn next_step(state: &Value) -> Option<Step> {
 
 fn notify(text: &str) {
     let _ = std::process::Command::new("notify-send")
-        .args(["--app-name=Screen Narrator", "-i", ICON, "Screen Narrator", text])
+        .args(["--app-name=Maprisma Narrator", "-i", ICON, "Maprisma Narrator", text])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -279,7 +279,7 @@ impl Narrator {
         let state = &self.state;
         let loaded = state.get("status").is_some();
         let ready = flag(state, "backend_ready") && !flag(state, "setup_busy");
-        let mut status = Some(string(state, "status")).filter(|s| !s.is_empty()).unwrap_or("Screen Narrator").to_string();
+        let mut status = Some(string(state, "status")).filter(|s| !s.is_empty()).unwrap_or("Maprisma Narrator").to_string();
         let book = string(state, "window");
         if self.reading && !book.is_empty() {
             status += &format!(" · {book}");
@@ -394,7 +394,7 @@ impl cosmic::Application for Narrator {
         Subscription::batch(vec![
             rectangle_tracker_subscription(0).map(|update| Message::Rectangle(update.1)),
             cosmic::iced::time::every(Duration::from_secs(1)).map(|_| Message::Poll),
-            Subscription::run_with("screen-narrator-desktop", |_| {
+            Subscription::run_with("maprisma-narrator-desktop", |_| {
                 stream::channel(1, |_output: cosmic::iced::futures::channel::mpsc::Sender<Message>| async move {
                     run_desktop_service().await;
                 })
@@ -459,7 +459,7 @@ impl cosmic::Application for Narrator {
                 }
             }
             Message::OpenSettings => {
-                let _ = std::process::Command::new(sibling("screen-narrator-settings"))
+                let _ = std::process::Command::new(sibling("maprisma-narrator"))
                     .stdin(Stdio::null())
                     .stdout(Stdio::null())
                     .stderr(Stdio::null())
@@ -536,7 +536,7 @@ impl cosmic::Application for Narrator {
 // Keeps the desktop service running while the applet runs; starts it again after it ends.
 async fn run_desktop_service() {
     loop {
-        let child = tokio::process::Command::new(sibling("cosmic-narrator-desktop"))
+        let child = tokio::process::Command::new(sibling("maprisma-narrator-desktop"))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::inherit())

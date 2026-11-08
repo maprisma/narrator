@@ -1,4 +1,4 @@
-// Screen Narrator settings for the COSMIC desktop: a Flutter port of the GNOME extension's
+// Maprisma Narrator settings for the COSMIC desktop: a Flutter port of the GNOME extension's
 // settings window. It talks only to the backend's bridge.py.
 
 import 'package:flutter/material.dart';
@@ -35,7 +35,7 @@ class _SettingsAppState extends State<SettingsApp> {
     return ValueListenableBuilder<Color?>(
       valueListenable: _desktop.accent,
       builder: (context, accent, _) => MaterialApp(
-        title: 'Screen Narrator',
+        title: 'Maprisma Narrator',
         debugShowCheckedModeBanner: false,
         themeMode: ThemeMode.system,
         theme: DesktopTheme.theme(Brightness.light, accent),

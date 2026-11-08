@@ -9,7 +9,7 @@ import bridge
 
 class SetupTests(unittest.TestCase):
     def test_selected_language_only_requires_its_ocr_data(self):
-        with patch.object(setup, 'DATA', Path('/nonexistent-screen-narrator-test')), patch('setup_backend.shutil.which', return_value='/usr/bin/tool'), patch('setup_backend.subprocess.run') as run:
+        with patch.object(setup, 'DATA', Path('/nonexistent-maprisma-narrator-test')), patch('setup_backend.shutil.which', return_value='/usr/bin/tool'), patch('setup_backend.subprocess.run') as run:
             run.return_value.stdout = 'eng'
             self.assertEqual(setup.missing_packages('en'), [])
             self.assertEqual(setup.missing_packages('de'), ['tesseract-data-deu'])
@@ -148,7 +148,7 @@ class SetupTests(unittest.TestCase):
             text = desktop.read_text()
             for command in ('toggle', 'on', 'off'):
                 self.assertIn('Exec=simple-reader ' + command, text)
-            self.assertIn('Name=Screen Narrator', text)
+            self.assertIn('Name=Maprisma Narrator', text)
 
 
 class ClipboardTests(unittest.TestCase):

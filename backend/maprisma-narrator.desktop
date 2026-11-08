@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Screen Narrator
+Name=Maprisma Narrator
 Comment=Read screen text and Kindle pages aloud
 Exec=simple-reader settings
 Icon=audio-headphones

@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:screen_narrator_settings/bridge.dart';
+import 'package:maprisma_narrator/bridge.dart';
 
 void main() {
   group('nextStep', () {
@@ -28,7 +28,7 @@ void main() {
         'setup_phase': 'idle',
       })!;
       expect(step.label, 'Set up automatically');
-      expect(step.text, 'Screen Narrator needs its reader, a voice and text recognition. It installs grim, slurp.');
+      expect(step.text, 'Maprisma Narrator needs its reader, a voice and text recognition. It installs grim, slurp.');
       expect(step.payload, {'command': 'setup', 'language': 'de'});
     });
 
@@ -36,7 +36,7 @@ void main() {
       final step = nextStep({'backend_ready': true, 'missing_packages': ['grim']})!;
       expect(step.payload, {'command': 'setup', 'language': 'en'});
       final none = nextStep({'backend_ready': false, 'missing_packages': []})!;
-      expect(none.text, 'Screen Narrator needs its reader, a voice and text recognition.');
+      expect(none.text, 'Maprisma Narrator needs its reader, a voice and text recognition.');
     });
 
     test('failed setup offers Retry setup', () {
@@ -98,7 +98,7 @@ void main() {
 
   test('resolveBridgeScript', () {
     expect(resolveBridgeScript({'SCREEN_NARRATOR_BACKEND': '/opt/b/', 'HOME': '/h'}), '/opt/b/bridge.py');
-    expect(resolveBridgeScript({'HOME': '/h'}), '/h/.local/share/cosmic-narrator/backend/bridge.py');
+    expect(resolveBridgeScript({'HOME': '/h'}), '/h/.local/share/maprisma-narrator/backend/bridge.py');
   });
 
   test('Bridge sends one JSON line and serializes requests', () async {

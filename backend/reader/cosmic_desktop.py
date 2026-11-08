@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The desktop side of reading on COSMIC, through the Screen Narrator desktop service (D-Bus),
+"""The desktop side of reading on COSMIC, through the Maprisma Narrator desktop service (D-Bus),
 which the COSMIC panel applet starts.
 
 Stands in for the Hyprland tools; each command prints what that tool printed:
@@ -20,9 +20,9 @@ import json
 import subprocess
 import sys
 
-NAME = 'io.github.ubruckhaus.ScreenNarrator'
-PATH = '/io/github/ubruckhaus/ScreenNarrator'
-INTERFACE = 'io.github.ubruckhaus.ScreenNarrator.Desktop'
+NAME = 'com.maprisma.Narrator.Desktop'
+PATH = '/com/maprisma/Narrator/Desktop'
+INTERFACE = 'com.maprisma.Narrator.Desktop'
 # Area selection waits for the user; everything else answers at once.
 TIMEOUTS = {'SelectArea': 90}
 
@@ -34,7 +34,7 @@ def call(method, signature='', *args):
         argv += [signature, *map(str, args)]
     result = subprocess.run(argv, capture_output=True, text=True, timeout=TIMEOUTS.get(method, 5) + 5)
     if result.returncode:
-        raise RuntimeError(result.stderr.strip() or 'The Screen Narrator desktop service is not running (add the Screen Narrator applet to the COSMIC panel)')
+        raise RuntimeError(result.stderr.strip() or 'The Maprisma Narrator desktop service is not running (add the Maprisma Narrator applet to the COSMIC panel)')
     data = json.loads(result.stdout)['data']
     return data[0] if data else None
 
@@ -70,8 +70,8 @@ def main(argv):
                 call('OpenSettings')
             except RuntimeError:
                 from pathlib import Path
-                app = Path.home() / '.local/share/cosmic-narrator/settings/screen-narrator-settings'
-                subprocess.Popen([str(app) if app.is_file() else 'screen-narrator-settings'],
+                app = Path.home() / '.local/share/maprisma-narrator/settings/maprisma-narrator'
+                subprocess.Popen([str(app) if app.is_file() else 'maprisma-narrator'],
                                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
             print('Unknown command: ' + ' '.join(argv), file=sys.stderr)

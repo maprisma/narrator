@@ -134,12 +134,12 @@ class NoticeTests(unittest.TestCase):
         import reader
         reader.NOTICES.clear()
         with patch('reader.subprocess.Popen'):
-            reader.desktop_notify('Screen Narrator: ON', icon='audio-headphones')
-            reader.desktop_notify('Screen Narrator cannot start', 'No <b>model</b> chosen', level='error')
-            reader.desktop_notify('Screen Narrator', 'Area too small', level='warning')
+            reader.desktop_notify('Maprisma Narrator: ON', icon='audio-headphones')
+            reader.desktop_notify('Maprisma Narrator cannot start', 'No <b>model</b> chosen', level='error')
+            reader.desktop_notify('Maprisma Narrator', 'Area too small', level='warning')
         notices = reader.recent_notices()
         self.assertEqual([n['level'] for n in notices], ['error', 'warning'])
-        self.assertEqual(notices[0]['title'], 'Screen Narrator cannot start')
+        self.assertEqual(notices[0]['title'], 'Maprisma Narrator cannot start')
         self.assertNotIn('<', notices[0]['text'])
         self.assertLess(notices[0]['id'], notices[1]['id'])
         for _ in range(10):

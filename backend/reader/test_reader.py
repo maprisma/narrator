@@ -280,8 +280,8 @@ class PinnedWindowTests(unittest.TestCase):
         from reader import Reader
         import json
         subject = self.subject(target='')
-        settings = json.dumps(dict(address='0x9', pid=1, at=[0, 0], size=[800, 600], title='Screen Narrator',
-                                   **{'class': 'io.github.ubruckhaus.ScreenNarratorSettings'}))
+        settings = json.dumps(dict(address='0x9', pid=1, at=[0, 0], size=[800, 600], title='Maprisma Narrator',
+                                   **{'class': 'com.maprisma.Narrator'}))
         with patch('reader.Task') as task:
             Reader.got_window(subject, 0, settings, '')
         task.assert_not_called()
@@ -312,7 +312,7 @@ class PinnedWindowTests(unittest.TestCase):
         self.assertFalse(subject.scanning)
         # A failed look-up is not a closed book.
         subject.scanning = True
-        task.call_args.args[2](1, '', 'The Screen Narrator extension is not running')
+        task.call_args.args[2](1, '', 'The Maprisma Narrator extension is not running')
         subject.book_closed.assert_not_called()
         self.assertFalse(subject.scanning)
         # Only the documented {} is a closed book, not any other answer.

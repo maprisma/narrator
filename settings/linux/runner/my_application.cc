@@ -165,7 +165,7 @@ static void setup_theme(MyApplication* self, FlView* view) {
   FlEngine* engine = fl_view_get_engine(view);
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   self->theme_channel = fl_method_channel_new(
-      fl_engine_get_binary_messenger(engine), "screen_narrator/theme",
+      fl_engine_get_binary_messenger(engine), "maprisma_narrator/theme",
       FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(self->theme_channel,
                                             theme_method_cb, self, nullptr);
@@ -202,11 +202,11 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "Screen Narrator");
+    gtk_header_bar_set_title(header_bar, "Maprisma Narrator");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "Screen Narrator");
+    gtk_window_set_title(window, "Maprisma Narrator");
   }
 
   gtk_window_set_default_size(window, 640, 820);

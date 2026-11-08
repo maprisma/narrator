@@ -20,7 +20,7 @@ def normalize_path(value):
 def engine_files(settings, engine):
     keys = ('piper_runner', 'piper_model', 'piper_config') if engine == 'piper' else (
         'qwen_runner', 'qwen_model', 'qwen_projection', 'qwen_speaker')
-    paths = [Path(settings.get(key) or '/nonexistent-screen-narrator-file') for key in keys]
+    paths = [Path(settings.get(key) or '/nonexistent-maprisma-narrator-file') for key in keys]
     return paths
 
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:screen_narrator_settings/desktop_theme.dart';
+import 'package:maprisma_narrator/desktop_theme.dart';
 
 void main() {
   test('portal accent is parsed, unset accent is ignored', () {
