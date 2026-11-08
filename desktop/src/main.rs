@@ -8,6 +8,7 @@
 // only goes into the reader's private runtime folder. Tools: grim (screenshots), slurp
 // (area) and wtype (keys).
 
+mod kde;
 mod wayland;
 
 use std::fs::OpenOptions;
@@ -36,7 +37,9 @@ const TOOL_TIMEOUT: Duration = Duration::from_secs(5);
 const SELECT_TIMEOUT: Duration = Duration::from_secs(90);
 
 fn home() -> PathBuf {
-    std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default()
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default()
 }
 
 fn capture_file() -> PathBuf {
@@ -44,7 +47,9 @@ fn capture_file() -> PathBuf {
 }
 
 fn helper() -> PathBuf {
-    let data = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).unwrap_or_else(|| home().join(".local/share"));
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".local/share"));
     data.join("kindle-reader/app/cosmic_desktop.py")
 }
 
@@ -53,7 +58,12 @@ fn geometry(text: &str) -> Option<(i32, i32, i32, i32)> {
     let (at, size) = text.split_once(' ')?;
     let (x, y) = at.split_once(',')?;
     let (w, h) = size.split_once('x')?;
-    let (x, y, w, h) = (x.parse().ok()?, y.parse().ok()?, w.parse::<i32>().ok()?, h.parse::<i32>().ok()?);
+    let (x, y, w, h) = (
+        x.parse().ok()?,
+        y.parse().ok()?,
+        w.parse::<i32>().ok()?,
+        h.parse::<i32>().ok()?,
+    );
     (w > 0 && h > 0).then_some((x, y, w, h))
 }
 
@@ -68,27 +78,50 @@ async fn reading() -> bool {
         let state: Value = serde_json::from_str(&line).ok()?;
         Some(state.get("enabled").and_then(Value::as_bool) == Some(true))
     };
-    tokio::time::timeout(Duration::from_secs(2), ask).await.ok().flatten().unwrap_or(false)
+    tokio::time::timeout(Duration::from_secs(2), ask)
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or(false)
 }
 
 fn proc_text(pid: u32, file: &str) -> Option<String> {
-    std::fs::read(format!("/proc/{pid}/{file}")).ok().map(|b| String::from_utf8_lossy(&b).into_owned())
+    std::fs::read(format!("/proc/{pid}/{file}"))
+        .ok()
+        .map(|b| String::from_utf8_lossy(&b).into_owned())
 }
 
 // The caller is the installed reader's helper (cosmic_desktop.py) of this user: it calls
 // through busctl, so the caller is busctl and its parent the helper.
 async fn from_reader(connection: &Connection, header: &Header<'_>) -> bool {
-    let Some(sender) = header.sender() else { return false };
-    let Ok(dbus) = zbus::fdo::DBusProxy::new(connection).await else { return false };
-    let Ok(pid) = dbus.get_connection_unix_process_id(sender.clone().into()).await else { return false };
+    let Some(sender) = header.sender() else {
+        return false;
+    };
+    let Ok(dbus) = zbus::fdo::DBusProxy::new(connection).await else {
+        return false;
+    };
+    let Ok(pid) = dbus
+        .get_connection_unix_process_id(sender.clone().into())
+        .await
+    else {
+        return false;
+    };
     let check = || -> Option<bool> {
         let cmdline = proc_text(pid, "cmdline")?;
         let status = proc_text(pid, "status")?;
-        let ppid: u32 = status.lines().find_map(|l| l.strip_prefix("PPid:"))?.trim().parse().ok()?;
+        let ppid: u32 = status
+            .lines()
+            .find_map(|l| l.strip_prefix("PPid:"))?
+            .trim()
+            .parse()
+            .ok()?;
         let parent = proc_text(ppid, "cmdline")?;
         let helper = helper();
         let helper = helper.to_string_lossy();
-        Some(cmdline.split('\0').next()?.ends_with("busctl") && parent.split('\0').any(|a| a == helper))
+        Some(
+            cmdline.split('\0').next()?.ends_with("busctl")
+                && parent.split('\0').any(|a| a == helper),
+        )
     };
     check().unwrap_or(false)
 }
@@ -104,7 +137,11 @@ async fn tool(argv: &[&str], timeout: Duration) -> Option<Vec<u8>> {
     match tokio::time::timeout(timeout, child).await {
         Ok(Ok(out)) if out.status.success() => Some(out.stdout),
         Ok(Ok(out)) => {
-            eprintln!("[Maprisma Narrator] {} failed: {}", argv[0], String::from_utf8_lossy(&out.stderr).trim());
+            eprintln!(
+                "[Maprisma Narrator] {} failed: {}",
+                argv[0],
+                String::from_utf8_lossy(&out.stderr).trim()
+            );
             None
         }
         Ok(Err(error)) => {
@@ -147,18 +184,26 @@ fn parse_ppm(data: &[u8]) -> Option<(usize, usize, &[u8])> {
 }
 
 fn write_png(path: &Path, width: usize, height: usize, rgb: &[u8]) -> std::io::Result<()> {
-    let file = OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(path)?;
+    let file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)?;
     let mut encoder = png::Encoder::new(BufWriter::new(file), width as u32, height as u32);
     encoder.set_color(png::ColorType::Rgb);
     encoder.set_depth(png::BitDepth::Eight);
     let mut writer = encoder.write_header().map_err(std::io::Error::other)?;
-    writer.write_image_data(rgb).map_err(std::io::Error::other)?;
+    writer
+        .write_image_data(rgb)
+        .map_err(std::io::Error::other)?;
     writer.finish().map_err(std::io::Error::other)?;
     Ok(())
 }
 
 struct Desktop {
     shared: Shared,
+    kde: Option<kde::Kde>,
     commands: Mutex<Sender<Command>>,
 }
 
@@ -193,22 +238,48 @@ impl Desktop {
 
     async fn capture_area(&self, area: &str, path: &Path) -> bool {
         self.hide(true).await;
-        let ok = tool(&["grim", "-g", area, &path.to_string_lossy()], TOOL_TIMEOUT).await.is_some();
+        let ok = if let Some(kde) = &self.kde {
+            match kde.capture(None, geometry(area).unwrap()).await {
+                Ok((w, h, rgb)) => write_png(path, w, h, &rgb).is_ok(),
+                Err(e) => {
+                    eprintln!("[Maprisma Narrator] ScreenShot2: {e}");
+                    false
+                }
+            }
+        } else {
+            tool(&["grim", "-g", area, &path.to_string_lossy()], TOOL_TIMEOUT)
+                .await
+                .is_some()
+        };
         self.hide(false).await;
         ok
     }
 
     // Part of one window from the window's own picture: windows over it or the focus
     // elsewhere do not matter.
-    async fn crop_window(&self, address: &str, area: (i32, i32, i32, i32), path: &Path) -> Result<(), String> {
-        let window = self.snapshot(|s| s.find(address).cloned()).ok_or(format!("window {address} is gone"))?;
+    async fn crop_window(
+        &self,
+        address: &str,
+        area: (i32, i32, i32, i32),
+        path: &Path,
+    ) -> Result<(), String> {
+        let window = self
+            .snapshot(|s| s.find(address).cloned())
+            .ok_or(format!("window {address} is gone"))?;
         if !window.shown {
             return Err(format!("window {address} is not on screen"));
         }
-        let data = tool(&["grim", "-t", "ppm", "-T", address, "-"], TOOL_TIMEOUT)
-            .await
-            .ok_or(format!("window {address} could not be captured"))?;
-        let (width, height, pixels) = parse_ppm(&data).ok_or("grim gave no picture")?;
+        let kde_picture;
+        let cosmic_picture;
+        let (width, height, pixels) = if let Some(kde) = &self.kde {
+            kde_picture = kde.capture(Some(address), area).await?;
+            (kde_picture.0, kde_picture.1, kde_picture.2.as_slice())
+        } else {
+            cosmic_picture = tool(&["grim", "-t", "ppm", "-T", address, "-"], TOOL_TIMEOUT)
+                .await
+                .ok_or("window could not be captured")?;
+            parse_ppm(&cosmic_picture).ok_or("grim gave no picture")?
+        };
         // The picture is the window at its own scale; a picture larger than the window's
         // frame on both sides has a border (shadows) around it, split evenly.
         let scale = width as f64 / window.size.0.max(1) as f64;
@@ -217,10 +288,18 @@ impl Desktop {
         let pad_x = ((width as f64 - window.size.0 as f64 * scale) / 2.0).max(0.0);
         let pad_y = ((height as f64 - window.size.1 as f64 * scale) / 2.0).max(0.0);
         let (x, y, w, h) = area;
-        let left = ((x - window.at.0) as f64 * scale + pad_x).round().clamp(0.0, width as f64) as usize;
-        let top = ((y - window.at.1) as f64 * scale + pad_y).round().clamp(0.0, height as f64) as usize;
-        let right = ((x + w - window.at.0) as f64 * scale + pad_x).round().clamp(0.0, width as f64) as usize;
-        let bottom = ((y + h - window.at.1) as f64 * scale + pad_y).round().clamp(0.0, height as f64) as usize;
+        let left = ((x - window.at.0) as f64 * scale + pad_x)
+            .round()
+            .clamp(0.0, width as f64) as usize;
+        let top = ((y - window.at.1) as f64 * scale + pad_y)
+            .round()
+            .clamp(0.0, height as f64) as usize;
+        let right = ((x + w - window.at.0) as f64 * scale + pad_x)
+            .round()
+            .clamp(0.0, width as f64) as usize;
+        let bottom = ((y + h - window.at.1) as f64 * scale + pad_y)
+            .round()
+            .clamp(0.0, height as f64) as usize;
         if right <= left || bottom <= top {
             return Err(format!("{x},{y} {w}x{h} is outside window {address}"));
         }
@@ -240,7 +319,10 @@ impl Desktop {
 
     // The book window the reader pinned, wherever the focus is; {} once it is closed.
     fn window(&self, address: &str) -> String {
-        self.snapshot(|s| s.find(address).map_or("{}".into(), |w| w.json().to_string()))
+        self.snapshot(|s| {
+            s.find(address)
+                .map_or("{}".into(), |w| w.json().to_string())
+        })
     }
 
     fn clients(&self) -> String {
@@ -256,11 +338,15 @@ impl Desktop {
     ) -> bool {
         let file = capture_file();
         if geometry(&area).is_none() || Path::new(&path) != file {
-            eprintln!("[Maprisma Narrator] capture refused: not the reader's capture: {area} {path}");
+            eprintln!(
+                "[Maprisma Narrator] capture refused: not the reader's capture: {area} {path}"
+            );
             return false;
         }
         if !reading().await || !from_reader(connection, &header).await {
-            eprintln!("[Maprisma Narrator] capture refused: reading is off or not asked by the installed reader");
+            eprintln!(
+                "[Maprisma Narrator] capture refused: reading is off or not asked by the installed reader"
+            );
             return false;
         }
         self.capture_area(&area, &file).await
@@ -276,11 +362,15 @@ impl Desktop {
     ) -> bool {
         let file = capture_file();
         let Some(area) = geometry(&area).filter(|_| Path::new(&path) == file) else {
-            eprintln!("[Maprisma Narrator] window capture refused: not the reader's capture: {area} {path}");
+            eprintln!(
+                "[Maprisma Narrator] window capture refused: not the reader's capture: {area} {path}"
+            );
             return false;
         };
         if !reading().await || !from_reader(connection, &header).await {
-            eprintln!("[Maprisma Narrator] window capture refused: reading is off or not asked by the installed reader");
+            eprintln!(
+                "[Maprisma Narrator] window capture refused: reading is off or not asked by the installed reader"
+            );
             return false;
         }
         match self.crop_window(&address, area, &file).await {
@@ -293,7 +383,11 @@ impl Desktop {
     }
 
     // "X,Y WxH" like slurp, or "" when cancelled.
-    async fn select_area(&self, #[zbus(connection)] connection: &Connection, #[zbus(header)] header: Header<'_>) -> String {
+    async fn select_area(
+        &self,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
+    ) -> String {
         if !from_reader(connection, &header).await {
             return String::new();
         }
@@ -314,8 +408,14 @@ impl Desktop {
         address: String,
         key: String,
     ) -> bool {
-        let valid = !key.is_empty() && key.len() <= 32 && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
-        if !valid || !reading().await || !from_reader(connection, &header).await || !self.shown(&address) {
+        let valid = !key.is_empty()
+            && key.len() <= 32
+            && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        if !valid
+            || !reading().await
+            || !from_reader(connection, &header).await
+            || !self.shown(&address)
+        {
             return false;
         }
         let previous = self.focused();
@@ -323,7 +423,11 @@ impl Desktop {
         let mut ok = true;
         if lent {
             self.hide(true).await;
-            self.send(Command::Activate(address.clone()));
+            if let Some(kde) = &self.kde {
+                let _ = kde.refresh(Some(&address)).await;
+            } else {
+                self.send(Command::Activate(address.clone()));
+            }
             let mut waited = Duration::ZERO;
             while self.focused().as_deref() != Some(address.as_str()) && waited < FOCUS_WAIT {
                 tokio::time::sleep(Duration::from_millis(20)).await;
@@ -335,9 +439,20 @@ impl Desktop {
         }
         // The waits let reading stop, the book leave the screen or the focus move meanwhile:
         // the focus is checked last, right before the key.
-        ok &= self.shown(&address) && reading().await && self.focused().as_deref() == Some(address.as_str());
+        ok &= self.shown(&address)
+            && reading().await
+            && self.focused().as_deref() == Some(address.as_str());
         if ok {
-            ok = tool(&["wtype", "-s", "20", "-k", &key], TOOL_TIMEOUT).await.is_some();
+            ok = if self.kde.is_some() {
+                let key = key.clone();
+                tokio::task::spawn_blocking(move || kde::send_key(&key))
+                    .await
+                    .unwrap_or(false)
+            } else {
+                tool(&["wtype", "-s", "20", "-k", &key], TOOL_TIMEOUT)
+                    .await
+                    .is_some()
+            };
         }
         if lent {
             // Let the key reach the book before the focus goes back, and only give it back if
@@ -347,7 +462,11 @@ impl Desktop {
                 && self.focused().as_deref() == Some(address.as_str())
                 && self.shown(&previous)
             {
-                self.send(Command::Activate(previous));
+                if let Some(kde) = &self.kde {
+                    let _ = kde.refresh(Some(&previous)).await;
+                } else {
+                    self.send(Command::Activate(previous));
+                }
             }
             self.hide(false).await;
         }
@@ -362,11 +481,17 @@ impl Desktop {
 // The Flutter settings window: next to this program, in the data folder, or on PATH.
 fn open_settings() {
     let mut candidates: Vec<PathBuf> = Vec::new();
-    if let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) {
+    if let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|e| e.parent().map(Path::to_path_buf))
+    {
         candidates.push(dir.join("maprisma-narrator"));
     }
     candidates.push(home().join(".local/share/maprisma-narrator/settings/maprisma-narrator"));
-    let program = candidates.into_iter().find(|p| p.is_file()).unwrap_or_else(|| "maprisma-narrator".into());
+    let program = candidates
+        .into_iter()
+        .find(|p| p.is_file())
+        .unwrap_or_else(|| "maprisma-narrator".into());
     let _ = std::process::Command::new(program)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -374,7 +499,53 @@ fn open_settings() {
         .spawn();
 }
 
+/// `maprisma-narrator-desktop --self-test DIR` (KDE): lists the windows through
+/// KWin and captures the active window and a screen area through ScreenShot2
+/// into DIR/window.png and DIR/area.png, to check the KDE backend and its
+/// authorisation (KWin only lets this installed program capture). Sends no keys.
+fn self_test(dir: &Path) -> i32 {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("tokio runtime");
+    runtime.block_on(async {
+        let report = |ok: bool, what: &str| {
+            println!("{} {what}", if ok { "ok  " } else { "FAIL" });
+            ok
+        };
+        let Ok(builder) = zbus::connection::Builder::session() else { return 1 };
+        let Ok(connection) = builder.build().await else { return 1 };
+        let shared: Shared = Arc::new(Mutex::new(Snapshot::default()));
+        let Ok(kde) = kde::Kde::new(connection, shared.clone()).await else { return 1 };
+        let listed = kde.refresh(None).await.is_ok();
+        let active = shared.lock().ok().and_then(|s| s.focused().cloned());
+        let mut ok = report(listed && active.is_some(), "windows from KWin (an active window)");
+        if let Some(w) = active {
+            let picture = kde.capture(Some(&w.address), (w.at.0, w.at.1, w.size.0, w.size.1)).await;
+            ok &= report(
+                matches!(&picture, Ok((wd, ht, _)) if *wd > 0 && *ht > 0)
+                    && picture.as_ref().is_ok_and(|(wd, ht, rgb)| write_png(&dir.join("window.png"), *wd, *ht, rgb).is_ok()),
+                &format!("window capture (ScreenShot2): {}", picture.as_ref().err().cloned().unwrap_or_default()),
+            );
+        }
+        let area = kde.capture(None, (0, 0, 400, 300)).await;
+        ok &= report(
+            area.as_ref().is_ok_and(|(wd, ht, rgb)| write_png(&dir.join("area.png"), *wd, *ht, rgb).is_ok()),
+            &format!("area capture (ScreenShot2): {}", area.as_ref().err().cloned().unwrap_or_default()),
+        );
+        if ok { 0 } else { 1 }
+    })
+}
+
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() == 3 && args[1] == "--self-test" {
+        std::process::exit(self_test(Path::new(&args[2])));
+    }
+    // `--self-test-key KEY`: one key to the focused window through KWin's
+    // fake input (checks its authorisation); only by hand, for tests.
+    if args.len() == 3 && args[1] == "--self-test-key" {
+        let ok = kde::send_key(&args[2]);
+        println!("{} key {} (fake input)", if ok { "ok  " } else { "FAIL" }, args[2]);
+        std::process::exit(if ok { 0 } else { 1 });
+    }
     // Ends with the applet that started it, also when the applet is killed (a panel restart):
     // otherwise an old service would keep running beside the new one.
     unsafe {
@@ -388,30 +559,73 @@ fn main() {
     let wayland_shared = shared.clone();
     let wayland_thread = std::thread::spawn(move || wayland::run(wayland_shared, receiver));
 
-    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("tokio runtime");
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
     let result: zbus::Result<()> = runtime.block_on(async {
         let mut waited = Duration::ZERO;
-        while !shared.lock().map(|s| s.ready).unwrap_or(true) && !wayland_thread.is_finished() && waited < Duration::from_secs(5) {
+        while !shared.lock().map(|s| s.ready).unwrap_or(true)
+            && !wayland_thread.is_finished()
+            && waited < Duration::from_secs(5)
+        {
             tokio::time::sleep(Duration::from_millis(20)).await;
             waited += Duration::from_millis(20);
         }
-        let desktop = Desktop { shared, commands: Mutex::new(sender) };
-        let _connection = zbus::connection::Builder::session()?
+        let connection = zbus::connection::Builder::session()?
             .name(NAME)?
-            .serve_at(PATH, desktop)?
             .build()
             .await?;
-        // Serves until the Wayland side ends (the session is over).
+        let kde = if kde::enabled() {
+            Some(kde::Kde::new(connection.clone(), shared.clone()).await?)
+        } else {
+            None
+        };
+        if let Some(kde) = &kde {
+            let _ = kde.refresh(None).await;
+            tokio::spawn(kde.clone().poll());
+        }
+        let desktop_kde = kde.clone();
+        let desktop = Desktop {
+            shared,
+            kde,
+            commands: Mutex::new(sender),
+        };
+        connection.object_server().at(PATH, desktop).await?;
+        // Serves until the Wayland side ends (the session is over) or it is told
+        // to stop (its tray or applet ended): then KWin's watcher script goes too.
+        let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).ok();
         while !wayland_thread.is_finished() {
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            let stop = async {
+                match term.as_mut() {
+                    Some(t) => {
+                        t.recv().await;
+                    }
+                    None => std::future::pending::<()>().await,
+                }
+            };
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_secs(1)) => {}
+                _ = stop => {
+                    if let Some(kde) = &desktop_kde {
+                        kde.stop_watcher().await;
+                    }
+                    return Ok(());
+                }
+            }
         }
         if let Ok(Err(error)) = wayland_thread.join() {
             eprintln!("[Maprisma Narrator] Wayland: {error}");
         }
+        if let Some(kde) = &desktop_kde {
+            kde.stop_watcher().await;
+        }
         Ok(())
     });
     match result {
-        Err(zbus::Error::NameTaken) => eprintln!("[Maprisma Narrator] the desktop service runs already"),
+        Err(zbus::Error::NameTaken) => {
+            eprintln!("[Maprisma Narrator] the desktop service runs already")
+        }
         Err(error) => eprintln!("[Maprisma Narrator] desktop service: {error}"),
         Ok(()) => {}
     }

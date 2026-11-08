@@ -61,3 +61,43 @@ QT_QPA_PLATFORM=offscreen ~/.local/share/kindle-reader/venv/bin/python -m unitte
 ```
 
 MIT license.
+
+## KDE Plasma
+
+On **KDE Plasma 6.8 Wayland**, `./install.sh` also installs
+`~/.local/bin/maprisma-narrator-tray` and a KDE-only autostart entry at
+`~/.config/autostart/com.maprisma.Narrator.Tray.desktop` (respecting XDG overrides).
+Log in again, or run the installed tray executable. Use either the tray or the
+COSMIC applet in a session. The tray supervises the same desktop helper.
+
+The tray's context menu offers Start, Pause/Resume, Stop, reader status, setup and
+repair actions, Read the active window, Select reading area…, Reset reading area,
+reading speed presets (0.60–2.00×), and Settings…. **Activate (normally left click)
+starts/stops reading; middle click pauses/resumes; right click opens the menu.**
+The icon changes for reading/paused state and exposes the reader status in its tooltip.
+
+The helper selects KWin on KDE, or when the COSMIC window globals are absent.
+It polls windows through short-lived KWin scripts, captures windows/areas through
+KWin ScreenShot2, sends page keys through KDE fake-input, and keeps the existing
+layer-shell passage highlight and `slurp` area selector. It preserves the Python
+reader and `com.maprisma.Narrator.Desktop` interface. COSMIC retains its existing
+window protocols, `grim` captures and `wtype` keys.
+
+The installed hidden `com.maprisma.Narrator.Desktop.desktop` grants ScreenShot2
+and fake-input access to the helper's **real installed executable path**. Run the
+installed helper through the tray: a binary under `target/` does not match that
+permission entry. KDE does not require `grim` or `wtype` for helper operations;
+the unchanged backend setup may still list/install them. `slurp` is required.
+Minimized windows and windows on other desktops are excluded from capture/key
+operations; temporary focus for a page turn is restored when still appropriate.
+
+Rust verification (offline registry required):
+
+```sh
+cargo test --offline
+cargo build --release --offline
+```
+
+Live validation on Plasma is still required for compositor permissions, scaling,
+focus restoration, area selection, highlights and the tray host; Rust tests cover
+window mapping, page-key mapping, screenshot pixels and the menu model.

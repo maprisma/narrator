@@ -50,12 +50,18 @@ const GROW: i32 = 2;
 const fn premultiply(r: u8, g: u8, b: u8, a: f32) -> [u8; 4] {
     let alpha = (a * 255.0) as u32;
     // ARGB8888 little endian: B, G, R, A.
-    [(b as u32 * alpha / 255) as u8, (g as u32 * alpha / 255) as u8, (r as u32 * alpha / 255) as u8, alpha as u8]
+    [
+        (b as u32 * alpha / 255) as u8,
+        (g as u32 * alpha / 255) as u8,
+        (r as u32 * alpha / 255) as u8,
+        alpha as u8,
+    ]
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct Window {
     pub address: String,
+    pub pid: Option<u32>,
     pub title: String,
     pub class: String,
     pub at: (i32, i32),
@@ -67,7 +73,7 @@ pub struct Window {
 impl Window {
     // What hyprctl / the GNOME extension answered for a window.
     pub fn json(&self) -> Value {
-        json!({
+        let mut value = json!({
             "address": self.address,
             "at": [self.at.0, self.at.1],
             "size": [self.size.0, self.size.1],
@@ -75,7 +81,11 @@ impl Window {
             "class": self.class,
             "focused": self.focused,
             "shown": self.shown,
-        })
+        });
+        if let Some(pid) = self.pid {
+            value["pid"] = json!(pid);
+        }
+        value
     }
 }
 
@@ -123,7 +133,7 @@ struct App {
     compositor: CompositorState,
     shm: Shm,
     layer_shell: Option<LayerShell>,
-    toplevels: ToplevelInfoState,
+    toplevels: Option<ToplevelInfoState>,
     manager: Option<ToplevelManagerState>,
     workspaces: WorkspaceState,
     pool: Option<SlotPool>,
@@ -147,8 +157,13 @@ pub fn run(shared: Shared, commands: Channel<Command>) -> Result<(), String> {
     let (globals, mut queue) = registry_queue_init::<App>(&conn).map_err(|e| e.to_string())?;
     let qh = queue.handle();
     let registry = RegistryState::new(&globals);
-    let toplevels =
-        ToplevelInfoState::try_new(&registry, &qh).ok_or("the compositor does not list windows (ext-foreign-toplevel-list)")?;
+    let toplevels = ToplevelInfoState::try_new(&registry, &qh);
+    let kde = crate::kde::requested()
+        || toplevels
+            .as_ref()
+            .is_none_or(|t| t.cosmic_toplevel_info.is_none());
+    crate::kde::ENABLED.store(kde, std::sync::atomic::Ordering::Release);
+    let toplevels = if kde { None } else { toplevels };
     let compositor = CompositorState::bind(&globals, &qh).map_err(|e| e.to_string())?;
     let shm = Shm::bind(&globals, &qh).map_err(|e| e.to_string())?;
     let mut app = App {
@@ -182,7 +197,9 @@ pub fn run(shared: Shared, commands: Channel<Command>) -> Result<(), String> {
 
     let mut event_loop: EventLoop<App> = EventLoop::try_new().map_err(|e| e.to_string())?;
     let handle: LoopHandle<App> = event_loop.handle();
-    WaylandSource::new(conn.clone(), queue).insert(handle.clone()).map_err(|e| e.to_string())?;
+    WaylandSource::new(conn.clone(), queue)
+        .insert(handle.clone())
+        .map_err(|e| e.to_string())?;
     let command_qh = qh.clone();
     handle
         .insert_source(commands, move |event, _, app| {
@@ -195,11 +212,16 @@ pub fn run(shared: Shared, commands: Channel<Command>) -> Result<(), String> {
     handle
         .insert_source(Timer::from_duration(HIGHLIGHT_POLL), move |_, _, app| {
             app.load_highlight(&timer_qh);
+            if app.toplevels.is_none() {
+                app.sync_overlay(&timer_qh);
+            }
             TimeoutAction::ToDuration(HIGHLIGHT_POLL)
         })
         .map_err(|e| e.to_string())?;
     loop {
-        event_loop.dispatch(None, &mut app).map_err(|e| e.to_string())?;
+        event_loop
+            .dispatch(None, &mut app)
+            .map_err(|e| e.to_string())?;
     }
 }
 
@@ -208,9 +230,13 @@ impl App {
         match command {
             Command::Activate(address) => {
                 let Some(manager) = &self.manager else { return };
-                let Some(seat) = self.seats.seats().next() else { return };
+                let Some(seat) = self.seats.seats().next() else {
+                    return;
+                };
                 let handle = self
                     .toplevels
+                    .as_ref()
+                    .unwrap()
                     .toplevels()
                     .find(|info| info.identifier == address)
                     .and_then(|info| info.cosmic_toplevel.clone());
@@ -228,6 +254,10 @@ impl App {
 
     // The window list for the D-Bus side; called whenever a window, workspace or output changes.
     fn publish(&mut self, qh: &QueueHandle<Self>) {
+        if self.toplevels.is_none() {
+            self.sync_overlay(qh);
+            return;
+        }
         let active: HashSet<_> = self
             .workspaces
             .workspaces()
@@ -236,6 +266,8 @@ impl App {
             .collect();
         let windows = self
             .toplevels
+            .as_ref()
+            .unwrap()
             .toplevels()
             .map(|info| {
                 let geometry = info
@@ -245,15 +277,24 @@ impl App {
                     .or_else(|| info.geometry.iter().next());
                 let (at, size) = match geometry {
                     Some((output, g)) => {
-                        let origin = self.outputs.info(output).and_then(|i| i.logical_position).unwrap_or((0, 0));
-                        ((origin.0 + g.x, origin.1 + g.y), (g.width.max(1), g.height.max(1)))
+                        let origin = self
+                            .outputs
+                            .info(output)
+                            .and_then(|i| i.logical_position)
+                            .unwrap_or((0, 0));
+                        (
+                            (origin.0 + g.x, origin.1 + g.y),
+                            (g.width.max(1), g.height.max(1)),
+                        )
                     }
                     None => ((0, 0), (1, 1)),
                 };
                 let minimized = info.state.contains(&ToplevelState::Minimized);
-                let on_screen = active.is_empty() || info.workspace.iter().any(|w| active.contains(w));
+                let on_screen =
+                    active.is_empty() || info.workspace.iter().any(|w| active.contains(w));
                 Window {
                     address: info.identifier.clone(),
+                    pid: None,
                     title: info.title.clone(),
                     class: info.app_id.clone(),
                     at,
@@ -271,7 +312,9 @@ impl App {
 
     // highlight.json: {rectangles: [{x, y, width, height}], target}, replaced by the reader.
     fn load_highlight(&mut self, qh: &QueueHandle<Self>) {
-        let mtime = std::fs::metadata(&self.highlight_file).and_then(|m| m.modified()).ok();
+        let mtime = std::fs::metadata(&self.highlight_file)
+            .and_then(|m| m.modified())
+            .ok();
         if mtime == self.highlight_mtime {
             return;
         }
@@ -286,13 +329,23 @@ impl App {
             .map(|list| {
                 list.iter()
                     .filter_map(|r| {
-                        let n = |k: &str| r.get(k).and_then(Value::as_f64).filter(|v| v.is_finite());
-                        Some((n("x")?.round() as i32, n("y")?.round() as i32, n("width")?.round() as i32, n("height")?.round() as i32))
+                        let n =
+                            |k: &str| r.get(k).and_then(Value::as_f64).filter(|v| v.is_finite());
+                        Some((
+                            n("x")?.round() as i32,
+                            n("y")?.round() as i32,
+                            n("width")?.round() as i32,
+                            n("height")?.round() as i32,
+                        ))
                     })
                     .collect()
             })
             .unwrap_or_default();
-        let target = state.get("target").and_then(Value::as_str).unwrap_or("").to_string();
+        let target = state
+            .get("target")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
         let highlight = Highlight { rectangles, target };
         if highlight != self.highlight {
             self.highlight = highlight;
@@ -305,8 +358,15 @@ impl App {
             return false;
         }
         let target = self.highlight.target.trim_start_matches("0x");
-        self.toplevels.toplevels().any(|info| {
-            info.state.contains(&ToplevelState::Activated) && info.identifier.trim_start_matches("0x") == target
+        if self.toplevels.is_none() {
+            return self.shared.lock().is_ok_and(|s| {
+                s.focused()
+                    .is_some_and(|w| w.address.trim_start_matches("0x") == target)
+            });
+        }
+        self.toplevels.as_ref().unwrap().toplevels().any(|info| {
+            info.state.contains(&ToplevelState::Activated)
+                && info.identifier.trim_start_matches("0x") == target
         })
     }
 
@@ -319,7 +379,9 @@ impl App {
         if !self.overlays.is_empty() {
             return;
         }
-        let Some(layer_shell) = &self.layer_shell else { return };
+        let Some(layer_shell) = &self.layer_shell else {
+            return;
+        };
         for output in self.outputs.outputs() {
             let surface = self.compositor.create_surface(qh);
             let layer = layer_shell.create_layer_surface(
@@ -334,10 +396,16 @@ impl App {
             layer.set_keyboard_interactivity(KeyboardInteractivity::None);
             // Clicks go through to the book.
             if let Ok(region) = Region::new(&self.compositor) {
-                layer.wl_surface().set_input_region(Some(region.wl_region()));
+                layer
+                    .wl_surface()
+                    .set_input_region(Some(region.wl_region()));
             }
             layer.commit();
-            self.overlays.push(Overlay { layer, output, size: None });
+            self.overlays.push(Overlay {
+                layer,
+                output,
+                size: None,
+            });
         }
     }
 
@@ -349,9 +417,17 @@ impl App {
     }
 
     fn draw(&mut self, index: usize) {
-        let Some(overlay) = self.overlays.get(index) else { return };
-        let Some((width, height)) = overlay.size else { return };
-        let origin = self.outputs.info(&overlay.output).and_then(|i| i.logical_position).unwrap_or((0, 0));
+        let Some(overlay) = self.overlays.get(index) else {
+            return;
+        };
+        let Some((width, height)) = overlay.size else {
+            return;
+        };
+        let origin = self
+            .outputs
+            .info(&overlay.output)
+            .and_then(|i| i.logical_position)
+            .unwrap_or((0, 0));
         let stride = width as i32 * 4;
         let needed = (stride * height as i32) as usize;
         let pool = match &mut self.pool {
@@ -361,8 +437,12 @@ impl App {
                 Err(_) => return,
             },
         };
-        let Ok((buffer, canvas)) = pool.create_buffer(width as i32, height as i32, stride, wl_shm::Format::Argb8888)
-        else {
+        let Ok((buffer, canvas)) = pool.create_buffer(
+            width as i32,
+            height as i32,
+            stride,
+            wl_shm::Format::Argb8888,
+        ) else {
             return;
         };
         canvas.fill(0);
@@ -389,11 +469,39 @@ impl App {
 }
 
 impl CompositorHandler for App {
-    fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: i32) {}
-    fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: wl_output::Transform) {}
+    fn scale_factor_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: i32,
+    ) {
+    }
+    fn transform_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: wl_output::Transform,
+    ) {
+    }
     fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {}
-    fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
-    fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+    fn surface_enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
+    fn surface_leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
 }
 
 impl OutputHandler for App {
@@ -427,7 +535,9 @@ impl LayerShellHandler for App {
         configure: LayerSurfaceConfigure,
         _: u32,
     ) {
-        let Some(index) = self.overlays.iter().position(|o| &o.layer == layer) else { return };
+        let Some(index) = self.overlays.iter().position(|o| &o.layer == layer) else {
+            return;
+        };
         let (width, height) = configure.new_size;
         if width == 0 || height == 0 {
             return;
@@ -448,24 +558,58 @@ impl SeatHandler for App {
         &mut self.seats
     }
     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-    fn new_capability(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat, _: Capability) {}
-    fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat, _: Capability) {}
+    fn new_capability(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: wl_seat::WlSeat,
+        _: Capability,
+    ) {
+    }
+    fn remove_capability(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: wl_seat::WlSeat,
+        _: Capability,
+    ) {
+    }
     fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
 }
 
 impl ToplevelInfoHandler for App {
     fn toplevel_info_state(&mut self) -> &mut ToplevelInfoState {
-        &mut self.toplevels
+        self.toplevels.as_mut().unwrap()
     }
-    fn new_toplevel(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: &ExtForeignToplevelHandleV1) {
+    fn new_toplevel(
+        &mut self,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+        _: &ExtForeignToplevelHandleV1,
+    ) {
         self.publish(qh);
     }
-    fn update_toplevel(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: &ExtForeignToplevelHandleV1) {
+    fn update_toplevel(
+        &mut self,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+        _: &ExtForeignToplevelHandleV1,
+    ) {
         self.publish(qh);
     }
-    fn toplevel_closed(&mut self, _: &Connection, qh: &QueueHandle<Self>, toplevel: &ExtForeignToplevelHandleV1) {
+    fn toplevel_closed(
+        &mut self,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+        toplevel: &ExtForeignToplevelHandleV1,
+    ) {
         // Still listed during this call: published again without it.
-        let closed = self.toplevels.info(toplevel).map(|i| i.identifier.clone());
+        let closed = self
+            .toplevels
+            .as_ref()
+            .unwrap()
+            .info(toplevel)
+            .map(|i| i.identifier.clone());
         self.publish(qh);
         if let (Some(closed), Ok(mut shared)) = (closed, self.shared.lock()) {
             shared.windows.retain(|w| w.address != closed);
@@ -475,7 +619,9 @@ impl ToplevelInfoHandler for App {
 
 impl ToplevelManagerHandler for App {
     fn toplevel_manager_state(&mut self) -> &mut ToplevelManagerState {
-        self.manager.as_mut().expect("toplevel manager events without a manager")
+        self.manager
+            .as_mut()
+            .expect("toplevel manager events without a manager")
     }
     fn capabilities(
         &mut self,
@@ -491,6 +637,9 @@ impl WorkspaceHandler for App {
         &mut self.workspaces
     }
     fn done(&mut self) {
+        if self.toplevels.is_none() {
+            return;
+        }
         // No queue handle here; the next toplevel or timer event publishes. Update the
         // shown flags right away so a workspace switch counts at once.
         let active: HashSet<_> = self
@@ -501,10 +650,13 @@ impl WorkspaceHandler for App {
             .collect();
         let shown: Vec<(String, bool)> = self
             .toplevels
+            .as_ref()
+            .unwrap()
             .toplevels()
             .map(|info| {
                 let minimized = info.state.contains(&ToplevelState::Minimized);
-                let on_screen = active.is_empty() || info.workspace.iter().any(|w| active.contains(w));
+                let on_screen =
+                    active.is_empty() || info.workspace.iter().any(|w| active.contains(w));
                 (info.identifier.clone(), !minimized && on_screen)
             })
             .collect();

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Maprisma Narrator
+Comment=Read windows aloud
+Exec=maprisma-narrator-tray
+Icon=audio-headphones
+Terminal=false
+OnlyShowIn=KDE;

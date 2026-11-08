@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Maprisma Narrator Desktop Helper
+Exec=maprisma-narrator-desktop
+NoDisplay=true
+Terminal=false
+X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
+X-KDE-Wayland-Interfaces=org_kde_kwin_fake_input

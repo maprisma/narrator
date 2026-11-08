@@ -3232,6 +3232,16 @@ dependencies = [
  "png 0.18.1",
  "serde_json",
  "tokio",
+ "wayland-protocols-plasma",
+ "zbus",
+]
+
+[[package]]
+name = "maprisma-narrator-tray"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tokio",
  "zbus",
 ]
 
