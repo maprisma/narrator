@@ -362,7 +362,6 @@ async fn main() -> zbus::Result<()> {
     };
     let rev = Arc::new(std::sync::atomic::AtomicU32::new(1));
     let c = match zbus::connection::Builder::session()?
-        .name(NAME)?
         .serve_at(ITEM, Item(state.clone()))?
         .serve_at(
             MENU,
@@ -375,9 +374,15 @@ async fn main() -> zbus::Result<()> {
         .await
     {
         Ok(c) => c,
-        Err(zbus::Error::NameTaken) => return Ok(()),
         Err(e) => return Err(e),
     };
+    // One tray per session: a second one ends here (zbus would otherwise
+    // queue the name request and keep running, with a second helper).
+    match c.request_name_with_flags(NAME, zbus::fdo::RequestNameFlags::DoNotQueue.into()).await {
+        Ok(_) => {}
+        Err(zbus::Error::NameTaken) => return Ok(()),
+        Err(e) => return Err(e),
+    }
     tokio::spawn(control::run_desktop_service());
     let bus = zbus::fdo::DBusProxy::new(&c).await?;
     let mut owner = String::new();

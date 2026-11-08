@@ -572,10 +572,9 @@ fn main() {
             tokio::time::sleep(Duration::from_millis(20)).await;
             waited += Duration::from_millis(20);
         }
-        let connection = zbus::connection::Builder::session()?
-            .name(NAME)?
-            .build()
-            .await?;
+        let connection = zbus::connection::Builder::session()?.build().await?;
+        // A second service ends with NameTaken (zbus would otherwise queue it).
+        connection.request_name_with_flags(NAME, zbus::fdo::RequestNameFlags::DoNotQueue.into()).await?;
         let kde = if kde::enabled() {
             Some(kde::Kde::new(connection.clone(), shared.clone()).await?)
         } else {
