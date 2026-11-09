@@ -2,6 +2,7 @@
 # Build and install Maprisma Narrator for the current user (no root needed):
 #   ~/.local/bin/maprisma-narrator-applet         the panel applet (headphones)
 #   ~/.local/bin/maprisma-narrator-desktop        windows, screenshots, keys, highlight (the applet starts it)
+#   ~/.local/share/icons/hicolor/scalable/apps/…svg   the bar icon (its own name)
 #   ~/.local/bin/maprisma-narrator       the settings window (Flutter), if it could be built
 #   ~/.local/share/maprisma-narrator/backend/     the reader; "Set up automatically" in the menu installs it
 # Needs for building: cargo; for the settings also flutter (FLUTTER, default /mnt/Data/flutter/bin/flutter),
@@ -36,6 +37,10 @@ fi
 install -Dm755 target/release/maprisma-narrator-tray "$bin/maprisma-narrator-tray"
 install -Dm755 target/release/maprisma-narrator-applet "$bin/maprisma-narrator-applet"
 install -Dm755 target/release/maprisma-narrator-desktop "$bin/maprisma-narrator-desktop"
+# The bar icon (applet and idle tray) has a name of its own, so it can be changed without touching a theme.
+icon=io.github.ubruckhaus.CosmicMaprismaNarrator-symbolic
+install -Dm644 "data/icons/$icon.svg" "$data/icons/hicolor/scalable/apps/$icon.svg"
+gtk-update-icon-cache -q -t "$data/icons/hicolor" 2>/dev/null || true
 
 mkdir -p "$data/maprisma-narrator"
 rm -rf "$data/maprisma-narrator/backend.new"

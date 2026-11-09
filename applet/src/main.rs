@@ -29,7 +29,7 @@ use cosmic::{Element, theme};
 use serde_json::{Value, json};
 
 const APP_ID: &str = "io.github.ubruckhaus.CosmicMaprismaNarrator";
-const ICON: &str = "audio-headphones-symbolic";
+const ICON: &str = "io.github.ubruckhaus.CosmicMaprismaNarrator-symbolic";
 const MIN_SPEED: f32 = 0.6;
 const MAX_SPEED: f32 = 2.0;
 const POPUP_WIDTH: f32 = 360.0;

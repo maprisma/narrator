@@ -3,6 +3,6 @@ Type=Application
 Name=Maprisma Narrator
 Comment=Read windows aloud
 Exec=maprisma-narrator-tray
-Icon=audio-headphones
+Icon=io.github.ubruckhaus.CosmicMaprismaNarrator-symbolic
 Terminal=false
 OnlyShowIn=KDE;

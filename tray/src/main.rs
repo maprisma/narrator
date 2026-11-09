@@ -12,6 +12,8 @@ use zbus::{
 const NAME: &str = "com.maprisma.Narrator.Tray";
 const ITEM: &str = "/StatusNotifierItem";
 const MENU: &str = "/MenuBar";
+/// The bar icon when idle: a name of its own (the playing/paused states keep the theme's names).
+const ICON: &str = "io.github.ubruckhaus.CosmicMaprismaNarrator-symbolic";
 type Props = HashMap<String, OwnedValue>;
 #[derive(Clone, Debug, PartialEq)]
 struct Entry {
@@ -158,7 +160,7 @@ impl Item {
         } else if control::flag(&s, "enabled") {
             "media-playback-start"
         } else {
-            "audio-headphones"
+            ICON
         }
         .into()
     }
@@ -198,7 +200,7 @@ impl Item {
     async fn tool_tip(&self) -> (String, Pixmaps, String, String) {
         let s = self.0.value.lock().await;
         (
-            "audio-headphones".into(),
+            ICON.into(),
             vec![],
             "Maprisma Narrator".into(),
             s["status"].as_str().unwrap_or("Reader unavailable").into(),
