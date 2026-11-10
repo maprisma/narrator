@@ -48,9 +48,9 @@ class _SettingsAppState extends State<SettingsApp> {
             scaffoldMessengerKey: shotMessenger,
             themeMode: ThemeMode.system,
             theme: DesktopTheme.theme(Brightness.light, accent,
-                radius: cornerRadius(settings.corners, desktopRadius(Brightness.light))),
+                radius: cornerRadius(settings.corners)),
             darkTheme: DesktopTheme.theme(Brightness.dark, accent,
-                radius: cornerRadius(settings.corners, desktopRadius(Brightness.dark))),
+                radius: cornerRadius(settings.corners)),
             builder: (context, child) {
               _desktop.syncHeader(Theme.of(context));
               return ShotScope(child: child!);

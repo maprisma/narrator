@@ -1,10 +1,10 @@
 #[path = "../../translations/i18n.rs"]
 mod i18n;
 use i18n::{message, tr};
+#[allow(dead_code)] // the shared copy of every Maprisma COSMIC app; not every part is used here
 mod corners;
 mod shot;
 mod shot_files;
-use corners::{Corners, Look};
 use shot::{Shot, ShotMsg};
 // Maprisma Narrator: the headphones in the panel. Left click opens the menu
 // (Start / Pause / Stop, what needs setting up, reading area, speed, settings); right
@@ -116,14 +116,13 @@ struct Narrator {
     speed: Option<f32>, // while the slider is being moved
     busy: bool,         // a request is on its way
     shot: Shot,
-    look: Look,
-    corners: Corners,
+    corners: String, // Settings › Corners (corners.rs)
     screenshot_key: bool,
 }
 
 /// Settings › F12 saves a screenshot (on unless `"screenshot_key": false`) and › Corners
 /// (`"corners"`), set in the settings window and kept in the same settings.json as its language.
-fn look_settings() -> (bool, Corners) {
+fn look_settings() -> (bool, String) {
     let config = std::env::var_os("XDG_CONFIG_HOME")
         .filter(|v| !v.is_empty())
         .map(std::path::PathBuf::from)
@@ -136,7 +135,7 @@ fn look_settings() -> (bool, Corners) {
         .unwrap_or(Value::Null);
     (
         saved.get("screenshot_key").and_then(Value::as_bool) != Some(false),
-        Corners::parse(saved.get("corners").and_then(Value::as_str).unwrap_or("")),
+        corners::normalize(saved.get("corners").and_then(Value::as_str).unwrap_or("")).to_string(),
     )
 }
 
@@ -322,8 +321,11 @@ impl Narrator {
     }
 
     fn read_look(&mut self) -> Task<Message> {
-        (self.screenshot_key, self.corners) = look_settings();
-        self.look.apply(&self.core, self.corners)
+        let (screenshot_key, corners) = look_settings();
+        self.screenshot_key = screenshot_key;
+        self.corners = corners;
+        corners::set_current(&self.corners);
+        Task::none()
     }
 
     fn close_popup(&mut self) -> Task<Message> {
@@ -552,15 +554,7 @@ impl cosmic::Application for Narrator {
             Some(card) => column![card, self.menu()].width(Length::Fixed(POPUP_WIDTH)).into(),
             None => self.menu(),
         };
-        self.core.applet.popup_container(content).into()
-    }
-
-    fn system_theme_update(
-        &mut self,
-        _keys: &[&'static str],
-        _theme: &cosmic::cosmic_theme::Theme,
-    ) -> Task<Message> {
-        self.look.apply(&self.core, self.corners)
+        corners::apply(&self.corners, self.core.applet.popup_container(content))
     }
 
     fn style(&self) -> Option<cosmic::iced::theme::Style> {

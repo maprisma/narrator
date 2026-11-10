@@ -39,15 +39,16 @@ class DesktopTheme {
     return Color.from(alpha: 1, red: rgb[0], green: rgb[1], blue: rgb[2]);
   }
 
-  /// The window's theme; [radius] is Settings › Corners (see look.dart).
-  static ThemeData theme(Brightness brightness, Color? accent, {double radius = 12}) {
+  /// The window's theme; [radius] is Settings › Corners (see look.dart), null for Like the
+  /// desktop: Material's corners as they are.
+  static ThemeData theme(Brightness brightness, Color? accent, {double? radius}) {
     final scheme = ColorScheme.fromSeed(
       seedColor: accent ?? fallbackAccent,
       brightness: brightness,
       // Keeps primary close to the desktop accent instead of a muted tone of it.
       dynamicSchemeVariant: accent == null ? DynamicSchemeVariant.tonalSpot : DynamicSchemeVariant.fidelity,
     );
-    return withCorners(ThemeData(
+    final base = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       visualDensity: VisualDensity.compact,
@@ -62,7 +63,8 @@ class DesktopTheme {
         elevation: 0,
         shape: Border(top: BorderSide(color: scheme.outlineVariant)),
       ),
-    ), Corners(radius));
+    );
+    return radius == null ? base : withCorners(base, Corners(radius));
   }
 
   static String _hex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';

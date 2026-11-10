@@ -74,32 +74,30 @@ void saveLook({bool? screenshotKey, String? corners, File? file}) {
   look.value = LookSettings.fromJson(settings);
 }
 
-/// radius_s[0] of a COSMIC theme's corner_radii file (RON), or null.
-double? parseRadiusS(String text) {
-  final match = RegExp(r'radius_s\s*:\s*\(\s*(-?[0-9]+(?:\.[0-9]+)?)').firstMatch(text);
+/// radius_m[0] of a COSMIC theme's corner_radii file (RON), or null.
+double? parseRadiusM(String text) {
+  final match = RegExp(r'radius_m\s*:\s*\(\s*(-?[0-9]+(?:\.[0-9]+)?)').firstMatch(text);
   final value = match == null ? null : double.tryParse(match[1]!);
   return value == null || value < 0 || value > 1000 ? null : value;
 }
 
-/// The desktop's window corners as libcosmic draws them: radius_s, plus 4 when it is 4 or more.
-double windowRadius(double radiusS) => radiusS < 4 ? radiusS : radiusS + 4;
-
-/// COSMIC's window corners for light or dark (its theme's corner_radii); 12 without one (KDE).
+/// The COSMIC theme's corner radius for light or dark, as the Maprisma COSMIC apps show it in
+/// "Like the desktop (N px)": its medium radius (16 Round, 8 Slightly round, 2 Square); 16, as
+/// libcosmic's default theme, without one (KDE).
 double desktopRadius(Brightness brightness, [Map<String, String>? environment]) {
   final env = environment ?? Platform.environment;
   final configured = env['XDG_CONFIG_HOME'];
   final config = configured != null && configured.startsWith('/') ? configured : '${env['HOME'] ?? ''}/.config';
   final mode = brightness == Brightness.dark ? 'Dark' : 'Light';
-  final s = parseRadiusS(readRegularNoFollow('$config/cosmic/com.system76.CosmicTheme.$mode/v1/corner_radii'));
-  return s == null ? 12 : windowRadius(s);
+  return parseRadiusM(readRegularNoFollow('$config/cosmic/com.system76.CosmicTheme.$mode/v1/corner_radii')) ?? 16;
 }
 
-/// "desktop" follows the desktop's window corners, "slight" 6, "rounded" 12, "square" 0.
-double cornerRadius(String setting, double desktop) => switch (setting) {
+/// "slight" 6, "rounded" 12, "square" 0; null for "desktop": Material's own corners, untouched.
+double? cornerRadius(String setting) => switch (setting) {
   'slight' => 6,
   'rounded' => 12,
   'square' => 0,
-  _ => desktop,
+  _ => null,
 };
 
 @immutable
