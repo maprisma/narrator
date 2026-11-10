@@ -1,7 +1,21 @@
 [Desktop Entry]
 Type=Application
 Name=Maprisma Narrator
+Name[de]=Maprisma Narrator
+Name[fr]=Maprisma Narrator
+Name[es]=Maprisma Narrator
+Name[it]=Maprisma Narrator
+Name[pt]=Maprisma Narrator
+Name[nl]=Maprisma Narrator
+Name[pl]=Maprisma Narrator
 Comment=Read windows aloud
+Comment[de]=Fenster vorlesen
+Comment[fr]=Lire les fenêtres à voix haute
+Comment[es]=Leer ventanas en voz alta
+Comment[it]=Leggi le finestre ad alta voce
+Comment[pt]=Ler janelas em voz alta
+Comment[nl]=Vensters voorlezen
+Comment[pl]=Czytaj okna na głos
 Exec=maprisma-narrator-tray
 Icon=io.github.ubruckhaus.CosmicMaprismaNarrator-symbolic
 Terminal=false

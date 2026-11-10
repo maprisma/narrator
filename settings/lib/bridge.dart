@@ -1,6 +1,7 @@
 // Requests to the reader through backend/bridge.py: one JSON line in, the reader's full
 // state (or {"error": ...}) as the last line out. Port of the extension's bridge.js.
 
+import 'i18n.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -27,7 +28,7 @@ Json parseBridgeOutput(String out) {
   try {
     final value = jsonDecode(last.isEmpty ? '{}' : last);
     if (value is Map) return value.cast<String, dynamic>();
-    return {'error': 'Unexpected answer from the reader'};
+    return {'error': tr('Unexpected answer from the reader')};
   } on FormatException catch (error) {
     return {'error': error.message};
   }
@@ -93,8 +94,8 @@ Step? nextStep(Json state) {
   if (truthy(state['setup_busy'])) {
     final message = state['setup_message'];
     return Step(
-      text: truthy(message) ? '$message' : 'Setting up…',
-      label: state['setup_phase'] == 'packages' ? '' : 'Cancel',
+      text: truthy(message) ? '$message' : tr('Setting up…'),
+      label: state['setup_phase'] == 'packages' ? '' : tr('Cancel'),
       payload: {'command': 'cancel-setup'},
     );
   }
@@ -103,12 +104,12 @@ Step? nextStep(Json state) {
     final payload = <String, dynamic>{'command': 'setup', 'language': language};
     if (['error', 'cancelled'].contains(state['setup_phase'])) {
       final message = state['setup_message'];
-      return Step(text: message?.toString(), label: 'Retry setup', payload: payload);
+      return Step(text: message?.toString(), label: tr('Retry setup'), payload: payload);
     }
-    final installs = _hasItems(missing) ? ' It installs ${(missing as List).join(', ')}.' : '';
+    final installs = _hasItems(missing) ? trf(' It installs {0}.', [(missing as List).join(', ')]) : '';
     return Step(
-      text: 'Maprisma Narrator needs its reader, a voice and text recognition.$installs',
-      label: 'Set up automatically',
+      text: tr('Maprisma Narrator needs its reader, a voice and text recognition.') + installs,
+      label: tr('Set up automatically'),
       payload: payload,
     );
   }
@@ -123,7 +124,7 @@ Step? nextStep(Json state) {
           .firstWhere((f) => truthy(f!['command']) || truthy(f['settings']), orElse: () => null)
       : null;
   final problem = failed['problem']?.toString();
-  if (fix == null) return Step(text: problem, label: 'Settings…', payload: null);
+  if (fix == null) return Step(text: problem, label: tr('Settings…'), payload: null);
   final Json payload;
   if (truthy(fix['command'])) {
     payload = {'command': fix['command']};

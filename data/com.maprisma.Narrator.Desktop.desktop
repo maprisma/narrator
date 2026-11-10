@@ -1,6 +1,13 @@
 [Desktop Entry]
 Type=Application
 Name=Maprisma Narrator Desktop Helper
+Name[de]=Maprisma Narrator Desktophilfe
+Name[fr]=Assistant de bureau Maprisma Narrator
+Name[es]=Asistente de escritorio de Maprisma Narrator
+Name[it]=Assistente desktop Maprisma Narrator
+Name[pt]=Assistente de ambiente de trabalho Maprisma Narrator
+Name[nl]=Maprisma Narrator-desktophulp
+Name[pl]=Pomocnik pulpitu Maprisma Narrator
 Exec=maprisma-narrator-desktop
 NoDisplay=true
 Terminal=false

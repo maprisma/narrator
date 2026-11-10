@@ -1,4 +1,5 @@
 """One-shot private IPC and first-use setup for Maprisma Narrator."""
+from i18n import tr, trf
 import json
 import os
 import signal
@@ -66,9 +67,9 @@ def read_clipboard():
     try:
         code, data = run_bounded(['wl-paste', '--no-newline', '--type', mime], PASTE_LIMIT, 2.0)
     except ValueError:
-        raise ValueError('Clipboard text is longer than 8 KiB; paste a shorter value.')
+        raise ValueError(tr('Clipboard text is longer than 8 KiB; paste a shorter value.'))
     except TimeoutError:
-        raise ValueError('The clipboard did not answer in time.')
+        raise ValueError(tr('The clipboard did not answer in time.'))
     text = data.decode('utf-8', 'replace') if code == 0 else ''
     return dict(clipboard=''.join(c for c in text if c >= ' ' and c != '\x7f'))
 
@@ -87,7 +88,7 @@ def socket_request(payload):
                                    timeout=10, stdout=subprocess.DEVNULL)
                 time.sleep(.1)
         else:
-            raise ValueError('Reader did not become ready. Run setup to repair it.')
+            raise ValueError(tr('Reader did not become ready. Run setup to repair it.'))
         client.sendall((json.dumps(payload) + '\n').encode())
         chunks = bytearray()
         while b'\n' not in chunks:
@@ -96,7 +97,7 @@ def socket_request(payload):
                 break
             chunks.extend(part)
             if len(chunks) > 1048576:
-                raise ValueError('Reader response too large')
+                raise ValueError(tr('Reader response too large'))
         return json.loads(chunks.split(b'\n', 1)[0])
 
 
@@ -126,28 +127,28 @@ def readiness(language):
 def request(payload):
     command = payload.get('command', 'status')
     if command not in COMMANDS:
-        raise ValueError('Unknown command')
+        raise ValueError(tr('Unknown command'))
     if command == 'paste':
         return read_clipboard()
     setup = setup_state()
     if command == 'setup':
         language = payload.get('language', languages.default_language())
         if not languages.valid(language):
-            raise ValueError('Choose a supported language')
+            raise ValueError(tr('Choose a supported language'))
         backend_only = payload.get('backend_only', False)
         if not isinstance(backend_only, bool):
-            raise ValueError('Invalid setup option')
+            raise ValueError(tr('Invalid setup option'))
         engine = payload.get('engine')
         if engine not in (None, 'piper'):
-            raise ValueError('Unsupported installer')
+            raise ValueError(tr('Unsupported installer'))
         if engine == 'piper' and language not in languages.PIPER:
-            raise ValueError('Piper has no voice for this language; use Kokoro')
+            raise ValueError(tr('Piper has no voice for this language; use Kokoro'))
         translator = payload.get('translator')
         if translator not in (None, 'nllb'):
-            raise ValueError('Unsupported translator')
+            raise ValueError(tr('Unsupported translator'))
         ocr_language = payload.get('ocr_language')
         if ocr_language is not None and not languages.valid(ocr_language):
-            raise ValueError('Choose a supported language')
+            raise ValueError(tr('Choose a supported language'))
         if not setup.get('busy'):
             DATA.mkdir(parents=True, exist_ok=True)
             with (DATA / 'setup.log').open('a') as log:
@@ -162,28 +163,28 @@ def request(payload):
                     args.extend(['--translator', translator])
                 subprocess.Popen(args,
                                  stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
-            return dict(setup_busy=True, setup_message='Starting setup…', enabled=False, settings={})
+            return dict(setup_busy=True, setup_message=tr('Starting setup…'), enabled=False, settings={})
     elif command == 'cancel-setup':
         if setup.get('busy') and setup.get('phase') == 'packages':
-            raise ValueError('Wait for the package transaction to finish before cancelling.')
+            raise ValueError(tr('Wait for the package transaction to finish before cancelling.'))
         if setup.get('busy') and setup_pid(setup.get('pid')):
             os.kill(setup['pid'], signal.SIGTERM)
     elif command != 'status' and setup.get('busy'):
-        raise ValueError('Wait for setup to finish before reading or changing settings.')
+        raise ValueError(tr('Wait for setup to finish before reading or changing settings.'))
     endpoint = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}')) / 'kindle-reader/control.sock'
     if setup.get('busy') or (command in ('status', 'cancel-setup', 'setup') and not endpoint.exists() and not runtime_ready()):
         try:
             config = json.loads((Path.home() / '.config/kindle-reader/settings.json').read_text())
         except (OSError, ValueError):
             config = {}
-        response = dict(enabled=False, status='Ready to set up local reading', settings=config)
+        response = dict(enabled=False, status=tr('Ready to set up local reading'), settings=config)
     else:
         try:
             response = socket_request(payload if command not in ('setup', 'cancel-setup') else {'command': 'status'})
         except (OSError, subprocess.SubprocessError) as error:
             if command != 'status':
                 raise
-            response = dict(enabled=False, status='Reader could not start. Run setup to repair it. ' + str(error), settings={})
+            response = dict(enabled=False, status=trf('Reader could not start. Run setup to repair it. {0}', [error]), settings={})
     response.setdefault('settings', {}).setdefault('language', languages.default_language())
     response.setdefault('languages', languages.options())
     response.update(readiness(response['settings']['language']))

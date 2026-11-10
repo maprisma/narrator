@@ -1,4 +1,5 @@
 """First-use setup, runnable with system Python before the reader exists."""
+from i18n import tr, trf
 import argparse
 import datetime
 import fcntl
@@ -56,7 +57,7 @@ def setup_state():
     try:
         state = json.loads(PROGRESS.read_text())
         if state.get('busy') and not setup_pid(state.get('pid')):
-            return dict(busy=False, message='Setup was interrupted. Retry setup.', phase='error')
+            return dict(busy=False, message=tr('Setup was interrupted. Retry setup.'), phase='error')
         return state
     except (OSError, ValueError, TypeError):
         return dict(busy=False, message='', phase='idle')
@@ -97,7 +98,7 @@ def run(args, stream=False):
             if stream:
                 report(line.strip())
         if child.wait():
-            raise RuntimeError('\n'.join(tail)[-1200:] or 'Command failed: ' + str(args[0]))
+            raise RuntimeError('\n'.join(tail)[-1200:] or trf('Command failed: {0}', [args[0]]))
     finally:
         child = None
 
@@ -109,7 +110,7 @@ def interrupted(*_):
             child.wait(timeout=5)
         except (OSError, subprocess.TimeoutExpired):
             pass
-    report('Setup cancelled. Installed files are kept; you can retry.', 'cancelled', False)
+    report(tr('Setup cancelled. Installed files are kept; you can retry.'), 'cancelled', False)
     raise SystemExit(130)
 
 
@@ -138,12 +139,12 @@ def install_launcher(backup):
 def install(language, backend_only=False, engine=None, ocr_language=None, translator=None):
     """Set up the reader: OCR data for `ocr_language` (default: `language`) and a voice for `language`."""
     if not languages.valid(language) or not languages.valid(ocr_language or language):
-        raise ValueError('Choose a supported language')
+        raise ValueError(tr('Choose a supported language'))
     if engine is None and language not in languages.KOKORO:
         engine = 'piper'  # Kokoro has no voice for this language; Piper does.
         backend_only = True
     if engine == 'piper' and language not in languages.PIPER:
-        raise ValueError('Piper has no voice for this language; use Kokoro')
+        raise ValueError(tr('Piper has no voice for this language; use Kokoro'))
     DATA.mkdir(parents=True, exist_ok=True)
     flags = os.O_RDWR | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0)
     lock = os.open(DATA / 'setup.lock', flags, 0o600)
@@ -151,16 +152,16 @@ def install(language, backend_only=False, engine=None, ocr_language=None, transl
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         os.close(lock)
-        raise RuntimeError('Setup is already running')
+        raise RuntimeError(tr('Setup is already running'))
     try:
         existing = UNIT.read_text() if UNIT.exists() else ''
         if existing and not managed_service(existing):
-            raise RuntimeError('An unmanaged ocrvox.service exists. Its configuration was preserved; choose a different service before setup.')
+            raise RuntimeError(tr('An unmanaged ocrvox.service exists. Its configuration was preserved; choose a different service before setup.'))
         packages = missing_packages(ocr_language or language)
         if packages:
-            report('Authorize installation of: ' + ', '.join(packages), 'packages')
+            report(trf('Authorize installation of: {0}', [', '.join(packages)]), 'packages')
             run(['pkexec', 'pacman', '-S', '--needed', '--noconfirm', *packages])
-        report('Preparing private Python runtime…', 'runtime')
+        report(tr('Preparing private Python runtime…'), 'runtime')
         python = DATA / 'venv/bin/python'
         if not python.exists():
             run([sys.executable, '-m', 'venv', DATA / 'venv'])
@@ -168,7 +169,7 @@ def install(language, backend_only=False, engine=None, ocr_language=None, transl
             run([python, '-m', 'pip', 'install', '-r', ROOT / 'requirements.txt'], stream=True)
         backup = DATA / 'backups' / datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')
         backup.mkdir(parents=True)
-        report('Updating reader runtime (existing files backed up)…', 'runtime')
+        report(tr('Updating reader runtime (existing files backed up)…'), 'runtime')
         # Stop the known reader before replacing code, preserving service enablement.
         run(['systemctl', '--user', 'stop', 'ocrvox.service']) if existing else None
         app = DATA / 'app'
@@ -224,7 +225,7 @@ Environment=PYTHONDONTWRITEBYTECODE=1
         override.write_text(override_text)
         install_launcher(backup)
         if not backend_only:
-            report('Installing selected Kokoro voice…', 'voice')
+            report(tr('Installing selected Kokoro voice…'), 'voice')
             run([python, app / 'install_kokoro.py', '--language', language], stream=True)
         run(['systemctl', '--user', 'daemon-reload'])
         run(['systemctl', '--user', 'start', 'ocrvox.service'])
@@ -232,11 +233,11 @@ Environment=PYTHONDONTWRITEBYTECODE=1
             from install_piper import install as install_voice
             install_voice(DATA, language, run, report)
         if translator == 'nllb':
-            report('Installing offline translator (about 1.4 GB)…', 'translator')
+            report(tr('Installing offline translator (about 1.4 GB)…'), 'translator')
             run([python, app / 'install_nllb.py'], stream=True)
-        report('Ready. Test provider voice, then choose Use provider.', 'ready', False)
+        report(tr('Ready. Test provider voice, then choose Use provider.'), 'ready', False)
     except Exception as error:
-        report('Setup failed: ' + str(error), 'error', False)
+        report(trf('Setup failed: {0}', [error]), 'error', False)
         raise
     finally:
         os.close(lock)

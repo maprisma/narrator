@@ -101,3 +101,41 @@ cargo build --release --offline
 Live validation on Plasma is still required for compositor permissions, scaling,
 focus restoration, area selection, highlights and the tray host; Rust tests cover
 window mapping, page-key mapping, screenshot pixels and the menu model.
+
+## Interface languages
+
+The settings window has a **Language** choice at the top: **System (<name>)** or
+English, Deutsch, Français, Español, Italiano, Português, Nederlands, or Polski.
+System uses the first non-empty `LC_ALL`, `LC_MESSAGES`, or `LANG`; unsupported
+languages fall back to English. This choice is separate from the reader's text,
+voice, and translation languages. It is stored as `interface_language` (`auto` or
+a language code) in `$XDG_CONFIG_HOME/maprisma-narrator/settings.json`, defaulting
+to `~/.config/maprisma-narrator/settings.json`. The settings window changes
+immediately; the applet and tray pick up changes on their next refresh.
+
+English wording is the gettext-style key: `tr('Start')` or
+`trf('Reading: {0}', [window])`. Catalogs are bundled; nothing is downloaded.
+No reader/narrator catalog was found in `/mnt/Data/Projects/omarchy*` (the only
+translation directories found were AI Playground and AI Agents Map), so the base
+`translations/<code>.json` files are empty and this port's translations live in
+`translations/extra/<code>.json`. No original repository was modified.
+
+After editing catalogs, run `tools/gen-translations`. It generates
+`translations/compiled.json` for Rust, `settings/lib/translations.g.dart` for
+Flutter, and `backend/translations_generated.py` for the setup bridge. Commit
+these generated files with their catalogs. Check coverage, placeholders, desktop
+entries, locale fallback, and generated-file consistency with:
+
+```sh
+python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s backend -p 'test_*.py'
+cargo test --offline
+cd settings && flutter test --no-pub
+```
+
+The shared `backend/reader/` runtime is unchanged. The port translates common
+runtime statuses and readiness messages at its presentation boundaries; unknown
+runtime messages, external tool output, and operating-system diagnostics retain
+their original text. Device/model names, paths, filenames, book titles, and other
+data retain their supplied values. Reader-generated desktop notifications are
+still emitted by the unchanged shared runtime and may remain English.

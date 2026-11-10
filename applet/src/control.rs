@@ -1,3 +1,4 @@
+use crate::i18n::{message, tr, trf};
 use serde_json::{Value, json};
 use std::{path::PathBuf, process::Stdio, time::Duration};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -64,7 +65,7 @@ pub async fn request(payload: Value) -> Value {
     match tokio::time::timeout(Duration::from_secs(60), run).await {
         Ok(Ok(state)) => state,
         Ok(Err(error)) => json!({ "error": error }),
-        Err(_) => json!({ "error": "The reader did not answer." }),
+        Err(_) => json!({ "error": tr("The reader did not answer.") }),
     }
 }
 
@@ -111,13 +112,13 @@ pub fn next_step(state: &Value) -> Option<Step> {
     if flag(state, "setup_busy") {
         let text = Some(string(state, "setup_message"))
             .filter(|m| !m.is_empty())
-            .unwrap_or("Setting up…");
+            .map(tr).unwrap_or(tr("Setting up…"));
         return Some(Step {
-            text: text.into(),
+            text: message(text),
             label: if phase == "packages" {
                 String::new()
             } else {
-                "Cancel".into()
+                tr("Cancel").into()
             },
             payload: Some(json!({ "command": "cancel-setup" })),
         });
@@ -131,21 +132,19 @@ pub fn next_step(state: &Value) -> Option<Step> {
         let payload = Some(json!({ "command": "setup", "language": language }));
         if phase == "error" || phase == "cancelled" {
             return Some(Step {
-                text: string(state, "setup_message").into(),
-                label: "Retry setup".into(),
+                text: message(string(state, "setup_message")),
+                label: tr("Retry setup").into(),
                 payload,
             });
         }
         let extra = if missing.is_empty() {
             String::new()
         } else {
-            format!(" It installs {}.", missing.join(", "))
+            trf(" It installs {0}.", &[&missing.join(", ")])
         };
         return Some(Step {
-            text: format!(
-                "Maprisma Narrator needs its reader, a voice and text recognition.{extra}"
-            ),
-            label: "Set up automatically".into(),
+            text: format!("{}{extra}", tr("Maprisma Narrator needs its reader, a voice and text recognition.")),
+            label: tr("Set up automatically").into(),
             payload,
         });
     }
@@ -160,7 +159,7 @@ pub fn next_step(state: &Value) -> Option<Step> {
     if flag(state, "enabled") {
         return None;
     }
-    let problem = string(failed, "problem").to_string();
+    let problem = message(string(failed, "problem"));
     let fix = failed
         .get("fixes")
         .and_then(Value::as_array)
@@ -172,7 +171,7 @@ pub fn next_step(state: &Value) -> Option<Step> {
     let Some(fix) = fix else {
         return Some(Step {
             text: problem,
-            label: "Settings…".into(),
+            label: tr("Settings…").into(),
             payload: None,
         });
     };
@@ -193,7 +192,7 @@ pub fn next_step(state: &Value) -> Option<Step> {
     };
     Some(Step {
         text: problem,
-        label: string(fix, "label").into(),
+        label: message(string(fix, "label")),
         payload: Some(payload),
     })
 }

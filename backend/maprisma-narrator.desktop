@@ -1,7 +1,21 @@
 [Desktop Entry]
 Type=Application
 Name=Maprisma Narrator
+Name[de]=Maprisma Narrator
+Name[fr]=Maprisma Narrator
+Name[es]=Maprisma Narrator
+Name[it]=Maprisma Narrator
+Name[pt]=Maprisma Narrator
+Name[nl]=Maprisma Narrator
+Name[pl]=Maprisma Narrator
 Comment=Read screen text and Kindle pages aloud
+Comment[de]=Bildschirmtext und Kindle-Seiten vorlesen
+Comment[fr]=Lire le texte à l’écran et les pages Kindle à voix haute
+Comment[es]=Leer texto de pantalla y páginas Kindle en voz alta
+Comment[it]=Leggi il testo sullo schermo e le pagine Kindle ad alta voce
+Comment[pt]=Ler texto do ecrã e páginas Kindle em voz alta
+Comment[nl]=Schermtekst en Kindle-pagina’s voorlezen
+Comment[pl]=Czytaj tekst ekranu i strony Kindle na głos
 Exec=simple-reader settings
 Icon=audio-headphones
 Terminal=false
@@ -11,12 +25,33 @@ X-Read-Aloud-Managed=true
 
 [Desktop Action ToggleReading]
 Name=Start / stop reading
+Name[de]=Vorlesen starten / stoppen
+Name[fr]=Démarrer / arrêter la lecture
+Name[es]=Iniciar / detener lectura
+Name[it]=Avvia / interrompi lettura
+Name[pt]=Iniciar / parar leitura
+Name[nl]=Voorlezen starten / stoppen
+Name[pl]=Rozpocznij / zatrzymaj czytanie
 Exec=simple-reader toggle
 
 [Desktop Action StartReading]
 Name=Start reading
+Name[de]=Vorlesen starten
+Name[fr]=Démarrer la lecture
+Name[es]=Iniciar lectura
+Name[it]=Avvia lettura
+Name[pt]=Iniciar leitura
+Name[nl]=Voorlezen starten
+Name[pl]=Rozpocznij czytanie
 Exec=simple-reader on
 
 [Desktop Action StopReading]
 Name=Stop reading
+Name[de]=Vorlesen stoppen
+Name[fr]=Arrêter la lecture
+Name[es]=Detener lectura
+Name[it]=Interrompi lettura
+Name[pt]=Parar leitura
+Name[nl]=Voorlezen stoppen
+Name[pl]=Zatrzymaj czytanie
 Exec=simple-reader off

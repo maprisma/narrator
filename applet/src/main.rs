@@ -1,3 +1,6 @@
+#[path = "../../translations/i18n.rs"]
+mod i18n;
+use i18n::{message, tr};
 // Maprisma Narrator: the headphones in the panel. Left click opens the menu
 // (Start / Pause / Stop, what needs setting up, reading area, speed, settings); right
 // click starts or stops reading, middle click pauses. A green line under the icon while
@@ -61,8 +64,8 @@ fn notify(text: &str) {
             "--app-name=Maprisma Narrator",
             "-i",
             ICON,
-            "Maprisma Narrator",
-            text,
+            tr("Maprisma Narrator"),
+            &message(text),
         ])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -170,8 +173,8 @@ impl Narrator {
         let ready = flag(state, "backend_ready") && !flag(state, "setup_busy");
         let mut status = Some(string(state, "status"))
             .filter(|s| !s.is_empty())
-            .unwrap_or("Maprisma Narrator")
-            .to_string();
+            .map(message)
+            .unwrap_or_else(|| tr("Maprisma Narrator").into());
         let book = string(state, "window");
         if self.reading && !book.is_empty() {
             status += &format!(" · {book}");
@@ -197,28 +200,28 @@ impl Narrator {
         let controls = row![
             control(
                 "media-playback-start-symbolic",
-                "Start",
+                tr("Start"),
                 json!({"command": "on"}),
                 can_start
             ),
             if self.paused {
                 control(
                     "media-playback-start-symbolic",
-                    "Resume",
+                    tr("Resume"),
                     json!({"command": "pause"}),
                     self.reading,
                 )
             } else {
                 control(
                     "media-playback-pause-symbolic",
-                    "Pause",
+                    tr("Pause"),
                     json!({"command": "pause"}),
                     self.reading,
                 )
             },
             control(
                 "media-playback-stop-symbolic",
-                "Stop",
+                tr("Stop"),
                 json!({"command": "off"}),
                 self.reading
             ),
@@ -240,13 +243,13 @@ impl Narrator {
         let mut actions = column![divider::horizontal::default()];
         actions = actions
             .push(
-                menu_button(text::body("Read the active window")).on_press_maybe(
+                menu_button(text::body(tr("Read the active window"))).on_press_maybe(
                     self.reading
                         .then_some(Message::Send(json!({"command": "read"}))),
                 ),
             )
             .push(
-                menu_button(text::body("Select reading area…")).on_press_maybe(
+                menu_button(text::body(tr("Select reading area…"))).on_press_maybe(
                     ready.then_some(Message::Send(json!({"command": "select-area"}))),
                 ),
             );
@@ -257,7 +260,7 @@ impl Narrator {
                 .is_some_and(|a| !a.is_null());
         if custom_area {
             actions = actions.push(
-                menu_button(text::body("Reset reading area"))
+                menu_button(text::body(tr("Reset reading area")))
                     .on_press(Message::Send(json!({"command": "clear-area"}))),
             );
         }
@@ -279,7 +282,7 @@ impl Narrator {
         }
         actions = actions
             .push(divider::horizontal::default())
-            .push(menu_button(text::body("Settings…")).on_press(Message::OpenSettings));
+            .push(menu_button(text::body(tr("Settings…"))).on_press(Message::OpenSettings));
 
         column![padded_control(top).padding([12, 16]), actions]
             .width(Length::Fixed(POPUP_WIDTH))

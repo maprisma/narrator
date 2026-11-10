@@ -1,6 +1,20 @@
 [Desktop Entry]
 Name=Maprisma Narrator
+Name[de]=Maprisma Narrator
+Name[fr]=Maprisma Narrator
+Name[es]=Maprisma Narrator
+Name[it]=Maprisma Narrator
+Name[pt]=Maprisma Narrator
+Name[nl]=Maprisma Narrator
+Name[pl]=Maprisma Narrator
 Comment=Read any window, PDF or Kindle page aloud, translated if you like
+Comment[de]=Beliebige Fenster, PDF- oder Kindle-Seiten vorlesen, auf Wunsch übersetzt
+Comment[fr]=Lire toute fenêtre, page PDF ou Kindle à voix haute, avec traduction au choix
+Comment[es]=Leer cualquier ventana o página PDF o Kindle en voz alta, con traducción opcional
+Comment[it]=Leggi qualsiasi finestra, pagina PDF o Kindle ad alta voce, con traduzione facoltativa
+Comment[pt]=Ler qualquer janela ou página PDF ou Kindle em voz alta, com tradução opcional
+Comment[nl]=Elk venster, elke PDF- of Kindle-pagina voorlezen, desgewenst vertaald
+Comment[pl]=Czytaj dowolne okno, stronę PDF lub Kindle na głos, także z tłumaczeniem
 Type=Application
 Exec=maprisma-narrator
 Icon=audio-headphones

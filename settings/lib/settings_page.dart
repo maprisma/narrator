@@ -2,6 +2,7 @@
 // and Translation (port of the GNOME extension's prefs.js). Every change goes to the reader at
 // once through the bridge; the state is polled every 1.5 s while the window is open.
 
+import 'i18n.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -16,21 +17,21 @@ const servers = [
   ('LM Studio', 'http://127.0.0.1:1234/v1'),
   ('Ollama', 'http://127.0.0.1:11434/v1'),
 ];
-const offline = 'Offline translator (NLLB-200)';
+String get offline => tr('Offline translator (NLLB-200)');
 // Qwen speaks with a llama.cpp TTS runner, two model files and a recording of the speaker.
-const qwenFiles = [
-  ('qwen_runner', 'Speech runner', 'The llama.cpp TTS program (llama-tts)'),
-  ('qwen_model', 'Voice model', 'The Qwen3-TTS 1.7B model (.gguf)'),
-  ('qwen_projection', 'Audio model', 'Its matching audio projection (mmproj-….gguf)'),
-  ('qwen_speaker', 'Speaker recording', 'A clear recording of the voice to speak with (.wav)'),
+List<(String, String, String)> get qwenFiles => [
+  ('qwen_runner', tr('Speech runner'), tr('The llama.cpp TTS program (llama-tts)')),
+  ('qwen_model', tr('Voice model'), tr('The Qwen3-TTS 1.7B model (.gguf)')),
+  ('qwen_projection', tr('Audio model'), tr('Its matching audio projection (mmproj-….gguf)')),
+  ('qwen_speaker', tr('Speaker recording'), tr('A clear recording of the voice to speak with (.wav)')),
 ];
 const qwenLanguages = ['zh', 'en', 'ja', 'ko', 'de', 'fr', 'ru', 'pt', 'es', 'it'];
-const readingSwitches = [
-  ('follow', 'Read new pages', 'Also pages you turn yourself; off reads one page'),
-  ('highlight', 'Highlight the passage being read', ''),
-  ('pdf_page_area', 'Read only the page in PDF viewers', 'Document Viewer and Papers: no toolbar, sidebar or page numbers'),
-  ('kindle_crop', 'Skip the Kindle toolbar and progress bar', ''),
-  ('auto_page_turn', 'Turn Kindle and PDF pages after reading', 'Stops at the end of the document'),
+List<(String, String, String)> get readingSwitches => [
+  ('follow', tr('Read new pages'), tr('Also pages you turn yourself; off reads one page')),
+  ('highlight', tr('Highlight the passage being read'), ''),
+  ('pdf_page_area', tr('Read only the page in PDF viewers'), tr('Document Viewer and Papers: no toolbar, sidebar or page numbers')),
+  ('kindle_crop', tr('Skip the Kindle toolbar and progress bar'), ''),
+  ('auto_page_turn', tr('Turn Kindle and PDF pages after reading'), tr('Stops at the end of the document')),
 ];
 
 /// A number as JavaScript prints it (800, not 800.0).
@@ -103,7 +104,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (state['error'] != null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('${state['error']}'), duration: const Duration(seconds: 6)));
+        ..showSnackBar(SnackBar(content: Text(message('${state['error']}')), duration: const Duration(seconds: 6)));
     } else {
       _update(state);
     }
@@ -171,7 +172,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _chooseFile(String key, String title) async {
     final current = _qwenPaths[key]!.text.trim();
     final file = await openFile(
-      confirmButtonText: 'Open',
+      confirmButtonText: tr('Open'),
       initialDirectory: current.isEmpty ? null : File(current).parent.path,
     );
     if (file != null) _qwenPaths[key]!.text = file.path;
@@ -206,6 +207,26 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      PrefGroup(title: tr('Language'), children: [
+                        PrefRow(title: tr('Language'), suffixes: [
+                          ChoiceButton(
+                            title: tr('Language'),
+                            options: [
+                              ('auto', trf('System ({0})', [languageNames[systemLanguage(Platform.environment)]])),
+                              ...languageNames.entries.map((e) => (e.key, e.value)),
+                            ],
+                            value: interfaceLanguage.value,
+                            onPick: (value) {
+                              try {
+                                setInterfaceLanguage(value);
+                                setState(() {});
+                              } on FileSystemException {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Could not save the language setting.'))));
+                              }
+                            },
+                          ),
+                        ]),
+                      ]),
                       _statusGroup(state),
                       _readingGroup(state, settings, languages, ready),
                       _voiceGroup(state, settings, languages, ready),
@@ -234,27 +255,27 @@ class _SettingsPageState extends State<SettingsPage> {
     final canStart = ready && !reading && state['can_start'] != false && step == null;
     return PrefGroup(children: [
       PrefRow(
-        title: state['status'] as String? ?? 'Maprisma Narrator',
-        subtitle: step?.text ?? (truthy(window) ? 'Reading: $window' : ''),
+        title: message(state['status'] as String? ?? tr('Maprisma Narrator')),
+        subtitle: step?.text == null ? (truthy(window) ? trf('Reading: {0}', [window]) : '') : message(step!.text!),
         suffixes: [
           if (truthy(state['setup_busy']))
             const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
           if (step != null && step.label.isNotEmpty && step.payload != null)
-            FilledButton(onPressed: () => _send(step.payload!), child: Text(step.label)),
+            FilledButton(onPressed: () => _send(step.payload!), child: Text(message(step.label))),
           if (step == null && ready) ...[
             if (!reading)
               FilledButton(
                 onPressed: canStart ? () => _send({'command': 'on'}) : null,
-                child: const Text('Start'),
+                child: Text(tr('Start')),
               ),
             if (reading) ...[
               OutlinedButton(
                 onPressed: () => _send({'command': 'pause'}),
-                child: Text(paused ? 'Resume' : 'Pause'),
+                child: Text(paused ? tr('Resume') : tr('Pause')),
               ),
               OutlinedButton(
                 onPressed: () => _send({'command': 'off'}),
-                child: const Text('Stop'),
+                child: Text(tr('Stop')),
               ),
             ],
           ],
@@ -262,21 +283,21 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       if (step == null && ready && reading)
         PrefRow(
-          title: 'Book',
-          subtitle: 'Re-read this page or switch to the focused window',
+          title: tr('Book'),
+          subtitle: tr('Re-read this page or switch to the focused window'),
           suffixes: [
             OutlinedButton(
               onPressed: () => _send({'command': 'reread'}),
-              child: const Text('Read again'),
+              child: Text(tr('Read again')),
             ),
             OutlinedButton(
               onPressed: () => _send({'command': 'read'}),
-              child: const Text('Read active window'),
+              child: Text(tr('Read active window')),
             ),
           ],
         ),
       if (notice != null)
-        PrefRow(title: 'Last problem', subtitle: '${notice['title']}: ${notice['text']}', error: true),
+        PrefRow(title: tr('Last problem'), subtitle: '${tr('${notice['title']}')}: ${message('${notice['text']}')}', error: true),
     ]);
   }
 
@@ -284,18 +305,18 @@ class _SettingsPageState extends State<SettingsPage> {
     final custom = state['custom_area'];
     final kindle = settings['kindle_area'];
     final area = truthy(custom)
-        ? 'Selected area (${jsNumber((custom as List)[2])}×${jsNumber(custom[3])} px)'
+        ? trf('Selected area ({0}×{1} px)', [jsNumber((custom as List)[2]), jsNumber(custom[3])])
         : truthy(kindle)
-            ? 'Kindle (${(((kindle as List)[2] as num) * 100).round()}% × ${((kindle[3] as num) * 100).round()}%)'
-            : 'The whole active window';
-    return PrefGroup(title: 'Reading', children: [
+            ? trf('Kindle ({0}% × {1}%)', [(((kindle as List)[2] as num) * 100).round(), ((kindle[3] as num) * 100).round()])
+            : tr('The whole active window');
+    return PrefGroup(title: tr('Reading'), children: [
       PrefRow(
-        title: 'Text language',
-        subtitle: 'The language of the text on screen',
+        title: tr('Text language'),
+        subtitle: tr('The language of the text on screen'),
         enabled: ready,
         suffixes: [
           ChoiceButton(
-            title: 'Text language',
+            title: tr('Text language'),
             options: languages,
             value: settings['language'] as String?,
             searchable: true,
@@ -304,7 +325,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
       PrefRow(
-        title: 'Reading speed',
+        title: tr('Reading speed'),
         enabled: ready,
         suffixes: [
           SpinField(
@@ -319,20 +340,20 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       for (final (key, title, subtitle) in readingSwitches)
         SwitchPrefRow(
-          title: title,
-          subtitle: subtitle,
+          title: tr(title),
+          subtitle: tr(subtitle),
           enabled: ready,
           value: settings[key] is bool ? settings[key] as bool : truthy(settings[key] ?? true),
           onChanged: (value) => _configure({key: value}),
         ),
       PrefRow(
-        title: 'Reading area',
+        title: tr('Reading area'),
         subtitle: area,
         enabled: ready,
         suffixes: [
           if (truthy(custom) || truthy(kindle))
-            TextButton(onPressed: () => _send({'command': 'clear-area'}), child: const Text('Reset')),
-          OutlinedButton(onPressed: () => _send({'command': 'select-area'}), child: const Text('Select…')),
+            TextButton(onPressed: () => _send({'command': 'clear-area'}), child: Text(tr('Reset'))),
+          OutlinedButton(onPressed: () => _send({'command': 'select-area'}), child: Text(tr('Select…'))),
         ],
       ),
     ]);
@@ -349,25 +370,25 @@ class _SettingsPageState extends State<SettingsPage> {
     final checking = truthy(state['kokoro_checking']);
     final providerStatus = state['provider_status'];
     final kokoroSubtitle = checking
-        ? 'Checking the official Kokoro model sources…'
+        ? tr('Checking the official Kokoro model sources…')
         : installing
-            ? (truthy(providerStatus) ? '$providerStatus' : 'Updating the Kokoro model…')
+            ? (truthy(providerStatus) ? message('$providerStatus') : tr('Updating the Kokoro model…'))
             : (truthy(update['message'])
-                ? '${update['message']}'
-                : 'Looks for newer verified models of this language\'s Kokoro voice');
-    return PrefGroup(title: 'Voice', children: [
+                ? message('${update['message']}')
+                : tr('Looks for newer verified models of this language\'s Kokoro voice'));
+    return PrefGroup(title: tr('Voice'), children: [
       PrefRow(
-        title: 'Voice',
+        title: tr('Voice'),
         subtitle: online
-            ? 'A speech server is in use; choosing a voice here switches back'
+            ? tr('A speech server is in use; choosing a voice here switches back')
             : voices.isNotEmpty
                 ? ''
-                : 'No voice is installed for this language yet',
+                : tr('No voice is installed for this language yet'),
         enabled: ready,
         suffixes: [
-          TextButton(onPressed: () => _send({'command': 'test-voice'}), child: const Text('Test')),
+          TextButton(onPressed: () => _send({'command': 'test-voice'}), child: Text(tr('Test'))),
           ChoiceButton(
-            title: 'Voice',
+            title: tr('Voice'),
             options: voices,
             value: online ? null : settings['voice'] as String?,
             onPick: (voice) => _configure({'provider': 'Local', 'voice': voice}),
@@ -375,12 +396,12 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
       PrefRow(
-        title: 'Audio output',
+        title: tr('Audio output'),
         enabled: ready,
         suffixes: [
           ChoiceButton(
-            title: 'Audio output',
-            options: options(state['audio_outputs']),
+            title: tr('Audio output'),
+            options: [for (final o in options(state['audio_outputs'])) (o.$1, o.$1 == 'auto' ? tr('System default') : o.$2)],
             value: settings['audio_output'] as String?,
             onPick: (value) => _configure({'audio_output': value}),
           ),
@@ -388,12 +409,12 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       // Kokoro (or Piper where Kokoro has no voice) for any language, with its text recognition.
       PrefRow(
-        title: 'Install a voice',
-        subtitle: 'With text recognition for the language',
+        title: tr('Install a voice'),
+        subtitle: tr('With text recognition for the language'),
         enabled: !truthy(state['setup_busy']),
         suffixes: [
           ChoiceButton(
-            title: 'Install a voice',
+            title: tr('Install a voice'),
             options: languages,
             value: _installLanguage ?? settings['language'] as String?,
             searchable: true,
@@ -404,14 +425,14 @@ class _SettingsPageState extends State<SettingsPage> {
               final language = _installLanguage ?? settings['language'];
               if (truthy(language)) _send({'command': 'setup', 'language': language});
             },
-            child: const Text('Install'),
+            child: Text(tr('Install')),
           ),
         ],
       ),
       // Newer Kokoro models for the spoken language: checked on request, never installed on their own.
       if (kokoro.containsKey(spoken))
         PrefRow(
-          title: 'Kokoro model updates',
+          title: tr('Kokoro model updates'),
           subtitle: kokoroSubtitle,
           enabled: ready,
           suffixes: [
@@ -420,17 +441,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 onPressed: !checking && !truthy(state['enabled'])
                     ? () => _send({'command': 'check-kokoro-updates', 'language': _speechLanguage()})
                     : null,
-                child: const Text('Check'),
+                child: Text(tr('Check')),
               ),
             if (update['available'] == true && !installing)
               FilledButton(
                 onPressed: () => _send({'command': 'update-kokoro', 'language': _speechLanguage()}),
-                child: const Text('Update'),
+                child: Text(tr('Update')),
               ),
             if (installing)
               OutlinedButton(
                 onPressed: () => _send({'command': 'cancel-kokoro-install'}),
-                child: const Text('Cancel'),
+                child: Text(tr('Cancel')),
               ),
           ],
         ),
@@ -445,28 +466,27 @@ class _SettingsPageState extends State<SettingsPage> {
     final spokenLabel = languages.where((o) => o.$1 == spoken).firstOrNull?.$2 ?? spoken;
     final providerStatus = state['provider_status'];
     final testSubtitle = !qwenLanguages.contains(spoken)
-        ? 'Qwen does not speak $spokenLabel'
+        ? trf('Qwen does not speak {0}', [spokenLabel])
         : truthy(state['testing_voice'])
-            ? 'Testing the voice…'
-            : (truthy(providerStatus) ? '$providerStatus' : '');
+            ? tr('Testing the voice…')
+            : (truthy(providerStatus) ? message('$providerStatus') : '');
     return PrefGroup(
-      title: 'Qwen voice',
-      description: 'Qwen3-TTS through llama.cpp speaks with the voice of any recording you choose. '
-          'It needs the files below; nothing is downloaded for it.',
+      title: tr('Qwen voice'),
+      description: tr('Qwen3-TTS through llama.cpp speaks with the voice of any recording you choose. It needs the files below; nothing is downloaded for it.'),
       children: [
         for (final (key, title, help) in qwenFiles) _qwenFileRow(key, title, help, ready),
         PrefRow(
-          title: 'Test the voice, then use it',
+          title: tr('Test the voice, then use it'),
           subtitle: testSubtitle,
           enabled: ready,
           suffixes: [
             OutlinedButton(
               onPressed: () => _send({'command': 'test-provider', 'settings': _qwenCandidate()}),
-              child: const Text('Test'),
+              child: Text(tr('Test')),
             ),
             FilledButton(
               onPressed: canUse ? () => _send({'command': 'use-provider', 'settings': _qwenCandidate()}) : null,
-              child: const Text('Use'),
+              child: Text(tr('Use')),
             ),
           ],
         ),
@@ -476,8 +496,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _qwenFileRow(String key, String title, String help, bool ready) {
     final path = _qwenPaths[key]!.text.trim();
-    final missing = path.isNotEmpty && !FileSystemEntity.isFileSync(path) ? ' · not found' : '';
-    final subtitle = path.isNotEmpty ? '${path.split('/').last}$missing' : help;
+    final missing = path.isNotEmpty && !FileSystemEntity.isFileSync(path) ? tr(' · not found') : '';
+    final subtitle = path.isNotEmpty ? '${path.split('/').last}$missing' : tr(help);
     final theme = Theme.of(context);
     return Sensitive(
       enabled: ready,
@@ -490,7 +510,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 controller: _qwenPaths[key],
                 autocorrect: false,
                 decoration: InputDecoration(
-                  labelText: title,
+                  labelText: tr(title),
                   helperText: subtitle,
                   helperStyle: missing.isNotEmpty ? TextStyle(color: theme.colorScheme.error) : null,
                   border: InputBorder.none,
@@ -499,7 +519,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             const SizedBox(width: 8),
-            OutlinedButton(onPressed: () => _chooseFile(key, title), child: const Text('Choose…')),
+            OutlinedButton(onPressed: () => _chooseFile(key, title), child: Text(tr('Choose…'))),
           ],
         ),
       ),
@@ -520,31 +540,30 @@ class _SettingsPageState extends State<SettingsPage> {
     final keyReady = truthy(state['key_ready']);
     final providerStatus = state['provider_status'];
     return PrefGroup(
-      title: 'Speech server',
-      description: 'An OpenAI-compatible server with /v1/audio/speech and WAV output. A remote server '
-          'receives the text being read and may charge for speech; a server on this computer keeps it here.',
+      title: tr('Speech server'),
+      description: tr('An OpenAI-compatible server with /v1/audio/speech and WAV output. A remote server receives the text being read and may charge for speech; a server on this computer keeps it here.'),
       children: [
         PrefRow(
-          title: 'In use',
+          title: tr('In use'),
           subtitle: online
-              ? 'Speech server · ${settings['online_endpoint']} · ${settings['online_model']} / ${settings['online_voice']}'
-              : 'Voices on this computer (Kokoro or Piper)',
+              ? trf('Speech server · {0} · {1} / {2}', [settings['online_endpoint'], settings['online_model'], settings['online_voice']])
+              : tr('Voices on this computer (Kokoro or Piper)'),
           enabled: ready,
           suffixes: [
             if (online)
               OutlinedButton(
                 onPressed: () => _configure({'provider': 'Local'}),
-                child: const Text('Use voices on this computer'),
+                child: Text(tr('Use voices on this computer')),
               ),
           ],
         ),
         EntryPrefRow(
-          title: 'Server address (https://…/v1, or http://localhost)',
+          title: tr('Server address (https://…/v1, or http://localhost)'),
           controller: _endpoint,
           enabled: ready,
         ),
         EntryPrefRow(
-          title: 'Speech model',
+          title: tr('Speech model'),
           controller: _model,
           enabled: ready,
           suffixes: [
@@ -554,17 +573,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 'endpoint': _endpoint.text.trim(),
                 'token': _tokenOrNull(),
               }),
-              child: const Text('Find models'),
+              child: Text(tr('Find models')),
             ),
           ],
         ),
         if (speechModels.isNotEmpty)
           PrefRow(
-            title: 'Models on the server',
-            subtitle: 'Chat models cannot speak: choose a speech model',
+            title: tr('Models on the server'),
+            subtitle: tr('Chat models cannot speak: choose a speech model'),
             suffixes: [
               ChoiceButton(
-                title: 'Models on the server',
+                title: tr('Models on the server'),
                 options: speechModels,
                 value: _model.text.trim(),
                 searchable: true,
@@ -572,29 +591,29 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ),
-        EntryPrefRow(title: 'Voice', controller: _voiceId, enabled: ready),
+        EntryPrefRow(title: tr('Voice'), controller: _voiceId, enabled: ready),
         EntryPrefRow(
           title: keyReady && _endpoint.text.trim() == settings['online_endpoint']
-              ? 'API key / token (the saved one is used; type to replace it)'
-              : 'API key / token, if the server needs one',
+              ? tr('API key / token (the saved one is used; type to replace it)')
+              : tr('API key / token, if the server needs one'),
           controller: _token,
           password: true,
           enabled: ready,
         ),
         SwitchPrefRow(
-          title: 'Remember the token on this device',
-          subtitle: 'Saved in an owner-only plain-text file',
+          title: tr('Remember the token on this device'),
+          subtitle: tr('Saved in an owner-only plain-text file'),
           value: _remember,
           enabled: ready,
           onChanged: (value) => setState(() => _remember = value),
         ),
         PrefRow(
-          title: 'Test the voice, then use the server',
+          title: tr('Test the voice, then use the server'),
           subtitle: truthy(state['models_loading'])
-              ? 'Asking the server for its models…'
+              ? tr('Asking the server for its models…')
               : truthy(state['testing_voice'])
-                  ? 'Testing the voice…'
-                  : (truthy(providerStatus) ? '$providerStatus' : ''),
+                  ? tr('Testing the voice…')
+                  : (truthy(providerStatus) ? message('$providerStatus') : ''),
           enabled: ready,
           suffixes: [
             OutlinedButton(
@@ -602,7 +621,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 setState(() => _testedToken = _token.text);
                 _send({'command': 'test-provider', 'settings': _candidate(), 'token': _tokenOrNull()});
               },
-              child: const Text('Test'),
+              child: Text(tr('Test')),
             ),
             FilledButton(
               onPressed: canUse
@@ -613,17 +632,17 @@ class _SettingsPageState extends State<SettingsPage> {
                         'remember_token': _remember,
                       })
                   : null,
-              child: const Text('Use'),
+              child: Text(tr('Use')),
             ),
           ],
         ),
         if (keyReady)
           PrefRow(
-            title: 'Saved token of the server in use',
+            title: tr('Saved token of the server in use'),
             suffixes: [
               TextButton(
                 onPressed: () => _send({'command': 'configure-token', 'token': '', 'remember_token': false}),
-                child: const Text('Clear'),
+                child: Text(tr('Clear')),
               ),
             ],
           ),
@@ -651,17 +670,17 @@ class _SettingsPageState extends State<SettingsPage> {
     final server = translating && !offlineSelected;
     final translatorKeyReady = truthy(state['translator_key_ready']);
     return PrefGroup(
-      title: 'Translation',
-      description: 'Read the text in one language and hear it in another',
+      title: tr('Translation'),
+      description: tr('Read the text in one language and hear it in another'),
       children: [
         PrefRow(
-          title: 'Speak in',
+          title: tr('Speak in'),
           enabled: ready,
           suffixes: [
             ChoiceButton(
-              title: 'Speak in',
+              title: tr('Speak in'),
               options: [
-                ('', 'Off · read in the text language'),
+                ('', tr('Off · read in the text language')),
                 ...languages.where((o) => o.$1 != settings['language']),
               ],
               value: target,
@@ -672,11 +691,11 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         if (translating)
           PrefRow(
-            title: 'Translator',
+            title: tr('Translator'),
             enabled: ready,
             suffixes: [
               ChoiceButton(
-                title: 'Translator',
+                title: tr('Translator'),
                 options: serverOptions,
                 value: offlineSelected ? 'nllb' : endpoint,
                 onPick: (value) => value == 'nllb'
@@ -687,13 +706,13 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         if (translating && !offlineSelected)
           PrefRow(
-            title: 'Model',
-            subtitle: 'A chat or instruct model of the server',
+            title: tr('Model'),
+            subtitle: tr('A chat or instruct model of the server'),
             enabled: ready,
             suffixes: [
-              TextButton(onPressed: () => _send({'command': 'translator-models'}), child: const Text('Refresh')),
+              TextButton(onPressed: () => _send({'command': 'translator-models'}), child: Text(tr('Refresh'))),
               ChoiceButton(
-                title: 'Model',
+                title: tr('Model'),
                 options: [for (final m in models) (m, m)],
                 value: settings['translator_model'] as String?,
                 onPick: (value) => _configure({'translator_model': value}),
@@ -702,22 +721,22 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         if (translating && offlineSelected && (!truthy(state['nllb_ready']) || installingTranslator))
           PrefRow(
-            title: 'Offline translator',
-            subtitle: 'NLLB-200 1.3B, about 1.4 GB, non-commercial use only (CC-BY-NC 4.0)',
+            title: tr('Offline translator'),
+            subtitle: tr('NLLB-200 1.3B, about 1.4 GB, non-commercial use only (CC-BY-NC 4.0)'),
             suffixes: [
               OutlinedButton(
                 onPressed: () => _send({
                   'command': truthy(_state['installing_translator']) ? 'cancel-translator-install' : 'install-translator',
                 }),
-                child: Text(installingTranslator ? 'Cancel' : 'Install'),
+                child: Text(installingTranslator ? tr('Cancel') : tr('Install')),
               ),
             ],
           ),
         if (server)
           EntryPrefRow(
             title: translatorKeyReady
-                ? 'API key / token (one is in use; enter a new one to replace it)'
-                : 'API key / token, only for servers that need one',
+                ? tr('API key / token (one is in use; enter a new one to replace it)')
+                : tr('API key / token, only for servers that need one'),
             controller: _translatorToken,
             password: true,
             enabled: ready,
@@ -725,7 +744,7 @@ class _SettingsPageState extends State<SettingsPage> {
             suffixes: [
               if (_translatorToken.text.isNotEmpty)
                 IconButton(
-                  tooltip: 'Apply',
+                  tooltip: tr('Apply'),
                   icon: const Icon(Icons.check),
                   onPressed: _applyTranslatorToken,
                 ),
@@ -733,30 +752,30 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         if (server)
           SwitchPrefRow(
-            title: 'Remember the token on this device',
-            subtitle: 'Saved in an owner-only plain-text file, for this server only',
+            title: tr('Remember the token on this device'),
+            subtitle: tr('Saved in an owner-only plain-text file, for this server only'),
             value: _translatorRemember,
             enabled: ready,
             onChanged: (value) => setState(() => _translatorRemember = value),
           ),
         if (server && translatorKeyReady)
           PrefRow(
-            title: 'Token in use for the translation server',
+            title: tr('Token in use for the translation server'),
             suffixes: [
               TextButton(
                 onPressed: () =>
                     _send({'command': 'configure-translator-token', 'token': '', 'remember_token': false}),
-                child: const Text('Clear'),
+                child: Text(tr('Clear')),
               ),
             ],
           ),
         if (translating)
           PrefRow(
-            title: 'Test translation',
-            subtitle: state['translation_status'] as String? ?? '',
+            title: tr('Test translation'),
+            subtitle: message(state['translation_status'] as String? ?? ''),
             enabled: ready,
             suffixes: [
-              OutlinedButton(onPressed: () => _send({'command': 'test-translation'}), child: const Text('Test')),
+              OutlinedButton(onPressed: () => _send({'command': 'test-translation'}), child: Text(tr('Test'))),
             ],
           ),
       ],

@@ -1,4 +1,7 @@
-//! KDE StatusNotifierItem; Activate toggles reading, secondary menu uses DBusMenu.
+#[path = "../../translations/i18n.rs"]
+mod i18n;
+use i18n::{message, tr, trf};
+// KDE StatusNotifierItem; Activate toggles reading, secondary menu uses DBusMenu.
 #[path = "../../applet/src/control.rs"]
 mod control;
 use serde_json::{Value, json};
@@ -35,41 +38,41 @@ fn model(s: &Value) -> Vec<Entry> {
     let mut rows = vec![
         (
             1,
-            "Start".into(),
+            tr("Start").into(),
             ready && !enabled,
             Some(json!({"command":"on"})),
         ),
         (
             2,
-            if paused { "Resume" } else { "Pause" }.into(),
+            if paused { tr("Resume") } else { tr("Pause") }.into(),
             enabled,
             Some(json!({"command":"pause"})),
         ),
-        (3, "Stop".into(), enabled, Some(json!({"command":"off"}))),
+        (3, tr("Stop").into(), enabled, Some(json!({"command":"off"}))),
         (
             4,
             s.get("status")
                 .and_then(Value::as_str)
-                .unwrap_or("Reader unavailable")
+                .map(message).unwrap_or_else(|| tr("Reader unavailable").into())
                 .into(),
             false,
             None,
         ),
         (
             5,
-            "Read the active window".into(),
+            tr("Read the active window").into(),
             enabled,
             Some(json!({"command":"read"})),
         ),
         (
             6,
-            "Select reading area…".into(),
+            tr("Select reading area…").into(),
             ready,
             Some(json!({"command":"select-area"})),
         ),
         (
             7,
-            "Reset reading area".into(),
+            tr("Reset reading area").into(),
             ready,
             Some(json!({"command":"clear-area"})),
         ),
@@ -86,15 +89,12 @@ fn model(s: &Value) -> Vec<Entry> {
     for (i, v) in [0.6, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].iter().enumerate() {
         rows.push((
             20 + i as i32,
-            format!(
-                "Reading speed {v:.2}×{}",
-                if (speed - v).abs() < 0.01 { " ✓" } else { "" }
-            ),
+            trf("Reading speed {0}×{1}", &[&format!("{v:.2}"), if (speed - v).abs() < 0.01 { " ✓" } else { "" }]),
             true,
             Some(json!({"command":"configure","settings":{"speed":v}})),
         ));
     }
-    rows.push((9, "Settings…".into(), true, None));
+    rows.push((9, tr("Settings…").into(), true, None));
     rows.into_iter()
         .map(|(id, label, enabled, action)| Entry {
             id,
@@ -141,7 +141,7 @@ impl Item {
     }
     #[zbus(property)]
     fn title(&self) -> &str {
-        "Maprisma Narrator"
+        tr("Maprisma Narrator")
     }
     #[zbus(property)]
     async fn status(&self) -> String {
@@ -202,8 +202,8 @@ impl Item {
         (
             ICON.into(),
             vec![],
-            "Maprisma Narrator".into(),
-            s["status"].as_str().unwrap_or("Reader unavailable").into(),
+            tr("Maprisma Narrator").into(),
+            s["status"].as_str().map(message).unwrap_or_else(|| tr("Reader unavailable").into()).into(),
         )
     }
     #[zbus(signal)]
@@ -334,7 +334,8 @@ impl Menu {
     #[zbus(signal)]
     async fn layout_updated(e: &SignalEmitter<'_>, revision: u32, parent: i32) -> zbus::Result<()>;
 }
-async fn update(c: &Connection, state: &State, rev: &std::sync::atomic::AtomicU32, next: Value) {
+async fn update(c: &Connection, state: &State, rev: &std::sync::atomic::AtomicU32, mut next: Value) {
+    next["_interface_language"] = json!(i18n::language());
     let mut old = state.value.lock().await;
     if *old == next {
         return;
@@ -395,6 +396,9 @@ async fn main() -> zbus::Result<()> {
         _=timer.tick()=>{
         let current=bus.get_name_owner("org.kde.StatusNotifierWatcher".try_into().unwrap()).await.map(|s|s.to_string()).unwrap_or_default();
         if current!=owner {owner.clear();if !current.is_empty(){if let Ok(p)=zbus::Proxy::new(&c,"org.kde.StatusNotifierWatcher","/StatusNotifierWatcher","org.kde.StatusNotifierWatcher").await {if p.call::<_,_,()>("RegisterStatusNotifierItem",&(c.unique_name().unwrap().as_str(),)).await.is_ok(){owner=current;}}}}
+        // Also refresh labels when the language file changes while the reader is off.
+        let snapshot = state.value.lock().await.clone();
+        update(&c, &state, &rev, snapshot).await;
         // While setup runs, the full status every tick (its progress, readiness
         // and errors), as the COSMIC applet does while its popup is open.
         if control::flag(&*state.value.lock().await, "setup_busy") {let _ = state.tx.send(json!({"command":"status"}));}
@@ -411,7 +415,7 @@ mod tests {
         let rows = model(
             &json!({"enabled":true,"paused":true,"backend_ready":true,"settings":{"speed":1.25}}),
         );
-        assert_eq!(rows.iter().find(|e| e.id == 2).unwrap().label, "Resume");
+        assert_eq!(rows.iter().find(|e| e.id == 2).unwrap().label, tr("Resume"));
         assert!(!rows[0].enabled);
         assert_eq!(
             rows.iter().find(|e| e.id == 5).unwrap().action,
@@ -419,7 +423,7 @@ mod tests {
         );
         assert_eq!(
             rows.iter()
-                .filter(|e| e.label.starts_with("Reading speed"))
+                .filter(|e| (20..27).contains(&e.id))
                 .count(),
             7
         );

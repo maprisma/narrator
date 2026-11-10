@@ -1,5 +1,6 @@
 // Building blocks shaped like libadwaita preference groups and rows.
 
+import 'i18n.dart';
 import 'package:flutter/material.dart';
 
 /// A titled card of rows, like Adw.PreferencesGroup.
@@ -193,7 +194,7 @@ class _EntryPrefRowState extends State<EntryPrefRow> {
             ),
             if (widget.password)
               IconButton(
-                tooltip: _peek ? 'Hide text' : 'Show text',
+                tooltip: _peek ? tr('Hide text') : tr('Show text'),
                 icon: Icon(_peek ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
                 onPressed: () => setState(() => _peek = !_peek),
               ),
@@ -305,7 +306,7 @@ class _SearchDialogState extends State<_SearchDialog> {
           children: [
             TextField(
               autofocus: true,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), isDense: true),
+              decoration: InputDecoration(prefixIcon: Icon(Icons.search), isDense: true),
               onChanged: (text) => setState(() => _query = text),
               onSubmitted: (_) {
                 if (shown.isNotEmpty) Navigator.pop(context, shown.first.$1);
@@ -330,7 +331,7 @@ class _SearchDialogState extends State<_SearchDialog> {
           ],
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel'))],
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Cancel')))],
     );
   }
 }
@@ -406,7 +407,7 @@ class _SpinFieldState extends State<SpinField> {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton.outlined(
-          tooltip: 'Decrease',
+          tooltip: tr('Decrease'),
           icon: const Icon(Icons.remove, size: 18),
           onPressed: widget.value > widget.lower ? () => _set(widget.value - widget.step) : null,
         ),
@@ -416,12 +417,12 @@ class _SpinFieldState extends State<SpinField> {
             controller: _text,
             focusNode: _focus,
             textAlign: TextAlign.center,
-            decoration: const InputDecoration(isDense: true, border: InputBorder.none),
+            decoration: InputDecoration(isDense: true, border: InputBorder.none),
             onSubmitted: _commit,
           ),
         ),
         IconButton.outlined(
-          tooltip: 'Increase',
+          tooltip: tr('Increase'),
           icon: const Icon(Icons.add, size: 18),
           onPressed: widget.value < widget.upper ? () => _set(widget.value + widget.step) : null,
         ),
