@@ -10,6 +10,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import 'bridge.dart';
+import 'look.dart';
 import 'widgets.dart';
 
 const servers = [
@@ -187,6 +188,35 @@ class _SettingsPageState extends State<SettingsPage> {
     _translatorToken.text = '';
   }
 
+  /// Settings › Corners and F12 saves a screenshot (look.dart; the applet reads them too).
+  List<Widget> _lookRows(BuildContext context) {
+    final desktop = desktopRadius(Theme.of(context).brightness);
+    void save(void Function() write) {
+      try {
+        write();
+        setState(() {});
+      } on FileSystemException catch (error) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.osError?.message ?? error.message)));
+      }
+    }
+
+    return [
+      PrefRow(title: tr('Corners'), suffixes: [
+        ChoiceButton(
+          title: tr('Corners'),
+          options: [for (final choice in cornerChoices) (choice, cornerLabel(choice, desktop))],
+          value: look.value.corners,
+          onPick: (value) => save(() => saveLook(corners: value)),
+        ),
+      ]),
+      SwitchPrefRow(
+        title: tr('F12 saves a screenshot'),
+        value: look.value.screenshotKey,
+        onChanged: (on) => save(() => saveLook(screenshotKey: on)),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = _state;
@@ -226,6 +256,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             },
                           ),
                         ]),
+                        ..._lookRows(context),
                       ]),
                       _statusGroup(state),
                       _readingGroup(state, settings, languages, ready),

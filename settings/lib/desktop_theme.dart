@@ -6,6 +6,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'look.dart';
+
 const fallbackAccent = Color(0xFF3584E4);
 
 class DesktopTheme {
@@ -37,14 +39,15 @@ class DesktopTheme {
     return Color.from(alpha: 1, red: rgb[0], green: rgb[1], blue: rgb[2]);
   }
 
-  static ThemeData theme(Brightness brightness, Color? accent) {
+  /// The window's theme; [radius] is Settings › Corners (see look.dart).
+  static ThemeData theme(Brightness brightness, Color? accent, {double radius = 12}) {
     final scheme = ColorScheme.fromSeed(
       seedColor: accent ?? fallbackAccent,
       brightness: brightness,
       // Keeps primary close to the desktop accent instead of a muted tone of it.
       dynamicSchemeVariant: accent == null ? DynamicSchemeVariant.tonalSpot : DynamicSchemeVariant.fidelity,
     );
-    return ThemeData(
+    return withCorners(ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       visualDensity: VisualDensity.compact,
@@ -59,7 +62,7 @@ class DesktopTheme {
         elevation: 0,
         shape: Border(top: BorderSide(color: scheme.outlineVariant)),
       ),
-    );
+    ), Corners(radius));
   }
 
   static String _hex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';

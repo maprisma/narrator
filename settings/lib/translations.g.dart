@@ -194,7 +194,19 @@ const translations = <String, Map<String, String>>{
     "Translation test failed: {0}": "Übersetzungstest fehlgeschlagen: {0}",
     "Kokoro installed for {0}": "Kokoro für {0} installiert",
     "Maprisma Narrator": "Maprisma Narrator",
-    "System default": "Systemstandard"
+    "System default": "Systemstandard",
+    "Screenshot saved": "Bildschirmfoto gespeichert",
+    "Saved as {0}": "Gespeichert als {0}",
+    "What is wrong? (optional)": "Was stimmt nicht? (optional)",
+    "Done": "Fertig",
+    "F12 saves a screenshot": "F12 speichert ein Bildschirmfoto",
+    "Corners": "Ecken",
+    "Square": "Eckig",
+    "The screenshot could not be saved: {0}": "Das Bildschirmfoto konnte nicht gespeichert werden: {0}",
+    "The note could not be saved: {0}": "Die Notiz konnte nicht gespeichert werden: {0}",
+    "Like the desktop ({0} px)": "Wie der Desktop ({0} px)",
+    "Slightly rounded ({0} px)": "Leicht abgerundet ({0} px)",
+    "Rounded ({0} px)": "Abgerundet ({0} px)"
   },
   "fr": {
     "Language": "Langue",
@@ -389,7 +401,19 @@ const translations = <String, Map<String, String>>{
     "Translation test failed: {0}": "Échec du test de traduction : {0}",
     "Kokoro installed for {0}": "Kokoro installé pour {0}",
     "Maprisma Narrator": "Maprisma Narrator",
-    "System default": "Valeur par défaut du système"
+    "System default": "Valeur par défaut du système",
+    "Screenshot saved": "Capture enregistrée",
+    "Saved as {0}": "Enregistrée sous {0}",
+    "What is wrong? (optional)": "Qu'est-ce qui ne va pas ? (facultatif)",
+    "Done": "Terminé",
+    "F12 saves a screenshot": "F12 enregistre une capture d'écran",
+    "Corners": "Coins",
+    "Square": "Carrés",
+    "The screenshot could not be saved: {0}": "La capture n'a pas pu être enregistrée : {0}",
+    "The note could not be saved: {0}": "La note n'a pas pu être enregistrée : {0}",
+    "Like the desktop ({0} px)": "Comme le bureau ({0} px)",
+    "Slightly rounded ({0} px)": "Légèrement arrondis ({0} px)",
+    "Rounded ({0} px)": "Arrondis ({0} px)"
   },
   "es": {
     "Language": "Idioma",
@@ -584,7 +608,19 @@ const translations = <String, Map<String, String>>{
     "Translation test failed: {0}": "Error de prueba de traducción: {0}",
     "Kokoro installed for {0}": "Kokoro instalado para {0}",
     "Maprisma Narrator": "Maprisma Narrator",
-    "System default": "Predeterminado del sistema"
+    "System default": "Predeterminado del sistema",
+    "Screenshot saved": "Captura guardada",
+    "Saved as {0}": "Guardada como {0}",
+    "What is wrong? (optional)": "¿Qué falla? (opcional)",
+    "Done": "Hecho",
+    "F12 saves a screenshot": "F12 guarda una captura de pantalla",
+    "Corners": "Esquinas",
+    "Square": "Rectas",
+    "The screenshot could not be saved: {0}": "No se pudo guardar la captura: {0}",
+    "The note could not be saved: {0}": "No se pudo guardar la nota: {0}",
+    "Like the desktop ({0} px)": "Como el escritorio ({0} px)",
+    "Slightly rounded ({0} px)": "Ligeramente redondeadas ({0} px)",
+    "Rounded ({0} px)": "Redondeadas ({0} px)"
   },
   "it": {
     "Language": "Lingua",
@@ -779,7 +815,19 @@ const translations = <String, Map<String, String>>{
     "Translation test failed: {0}": "Prova di traduzione non riuscita: {0}",
     "Kokoro installed for {0}": "Kokoro installato per {0}",
     "Maprisma Narrator": "Maprisma Narrator",
-    "System default": "Predefinita di sistema"
+    "System default": "Predefinita di sistema",
+    "Screenshot saved": "Screenshot salvato",
+    "Saved as {0}": "Salvato come {0}",
+    "What is wrong? (optional)": "Cosa non va? (facoltativo)",
+    "Done": "Fatto",
+    "F12 saves a screenshot": "F12 salva uno screenshot",
+    "Corners": "Angoli",
+    "Square": "Squadrati",
+    "The screenshot could not be saved: {0}": "Impossibile salvare lo screenshot: {0}",
+    "The note could not be saved: {0}": "Impossibile salvare la nota: {0}",
+    "Like the desktop ({0} px)": "Come il desktop ({0} px)",
+    "Slightly rounded ({0} px)": "Leggermente arrotondati ({0} px)",
+    "Rounded ({0} px)": "Arrotondati ({0} px)"
   },
   "pt": {
     "Language": "Idioma",
@@ -974,7 +1022,19 @@ const translations = <String, Map<String, String>>{
     "Translation test failed: {0}": "Falha no teste de tradução: {0}",
     "Kokoro installed for {0}": "Kokoro instalado para {0}",
     "Maprisma Narrator": "Maprisma Narrator",
-    "System default": "Predefinição do sistema"
+    "System default": "Predefinição do sistema",
+    "Screenshot saved": "Captura guardada",
+    "Saved as {0}": "Guardada como {0}",
+    "What is wrong? (optional)": "O que está mal? (opcional)",
+    "Done": "Concluído",
+    "F12 saves a screenshot": "F12 guarda uma captura de ecrã",
+    "Corners": "Cantos",
+    "Square": "Retos",
+    "The screenshot could not be saved: {0}": "Não foi possível guardar a captura: {0}",
+    "The note could not be saved: {0}": "Não foi possível guardar a nota: {0}",
+    "Like the desktop ({0} px)": "Como o ambiente de trabalho ({0} px)",
+    "Slightly rounded ({0} px)": "Levemente arredondados ({0} px)",
+    "Rounded ({0} px)": "Arredondados ({0} px)"
   },
   "nl": {
     "Language": "Taal",
@@ -1169,7 +1229,19 @@ const translations = <String, Map<String, String>>{
     "Translation test failed: {0}": "Vertaaltest mislukt: {0}",
     "Kokoro installed for {0}": "Kokoro geïnstalleerd voor {0}",
     "Maprisma Narrator": "Maprisma Narrator",
-    "System default": "Systeemstandaard"
+    "System default": "Systeemstandaard",
+    "Screenshot saved": "Schermafbeelding bewaard",
+    "Saved as {0}": "Bewaard als {0}",
+    "What is wrong? (optional)": "Wat is er mis? (optioneel)",
+    "Done": "Klaar",
+    "F12 saves a screenshot": "F12 bewaart een schermafbeelding",
+    "Corners": "Hoeken",
+    "Square": "Hoekig",
+    "The screenshot could not be saved: {0}": "De schermafbeelding kon niet worden bewaard: {0}",
+    "The note could not be saved: {0}": "De notitie kon niet worden bewaard: {0}",
+    "Like the desktop ({0} px)": "Zoals het bureaublad ({0} px)",
+    "Slightly rounded ({0} px)": "Licht afgerond ({0} px)",
+    "Rounded ({0} px)": "Afgerond ({0} px)"
   },
   "pl": {
     "Language": "Język",
@@ -1364,6 +1436,18 @@ const translations = <String, Map<String, String>>{
     "Translation test failed: {0}": "Test tłumaczenia nie powiódł się: {0}",
     "Kokoro installed for {0}": "Kokoro zainstalowane dla języka {0}",
     "Maprisma Narrator": "Maprisma Narrator",
-    "System default": "Domyślne wyjście systemowe"
+    "System default": "Domyślne wyjście systemowe",
+    "Screenshot saved": "Zrzut ekranu zapisany",
+    "Saved as {0}": "Zapisano jako {0}",
+    "What is wrong? (optional)": "Co jest nie tak? (opcjonalnie)",
+    "Done": "Gotowe",
+    "F12 saves a screenshot": "F12 zapisuje zrzut ekranu",
+    "Corners": "Narożniki",
+    "Square": "Proste",
+    "The screenshot could not be saved: {0}": "Nie udało się zapisać zrzutu ekranu: {0}",
+    "The note could not be saved: {0}": "Nie udało się zapisać notatki: {0}",
+    "Like the desktop ({0} px)": "Jak pulpit ({0} px)",
+    "Slightly rounded ({0} px)": "Lekko zaokrąglone ({0} px)",
+    "Rounded ({0} px)": "Zaokrąglone ({0} px)"
   }
 };

@@ -191,5 +191,17 @@
   "Translation test failed: {0}": "Vertaaltest mislukt: {0}",
   "Kokoro installed for {0}": "Kokoro geïnstalleerd voor {0}",
   "Maprisma Narrator": "Maprisma Narrator",
-  "System default": "Systeemstandaard"
+  "System default": "Systeemstandaard",
+  "Screenshot saved": "Schermafbeelding bewaard",
+  "Saved as {0}": "Bewaard als {0}",
+  "What is wrong? (optional)": "Wat is er mis? (optioneel)",
+  "Done": "Klaar",
+  "F12 saves a screenshot": "F12 bewaart een schermafbeelding",
+  "Corners": "Hoeken",
+  "Square": "Hoekig",
+  "The screenshot could not be saved: {0}": "De schermafbeelding kon niet worden bewaard: {0}",
+  "The note could not be saved: {0}": "De notitie kon niet worden bewaard: {0}",
+  "Like the desktop ({0} px)": "Zoals het bureaublad ({0} px)",
+  "Slightly rounded ({0} px)": "Licht afgerond ({0} px)",
+  "Rounded ({0} px)": "Afgerond ({0} px)"
 }

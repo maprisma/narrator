@@ -1,6 +1,11 @@
 #[path = "../../translations/i18n.rs"]
 mod i18n;
 use i18n::{message, tr};
+mod corners;
+mod shot;
+mod shot_files;
+use corners::{Corners, Look};
+use shot::{Shot, ShotMsg};
 // Maprisma Narrator: the headphones in the panel. Left click opens the menu
 // (Start / Pause / Stop, what needs setting up, reading area, speed, settings); right
 // click starts or stops reading, middle click pauses. A green line under the icon while
@@ -36,6 +41,8 @@ const ICON: &str = "io.github.ubruckhaus.CosmicMaprismaNarrator-symbolic";
 const MIN_SPEED: f32 = 0.6;
 const MAX_SPEED: f32 = 2.0;
 const POPUP_WIDTH: f32 = 360.0;
+/// F12's folder in ~/Pictures and (as a slug) its file names (the settings window's too).
+const SHOT_FOLDER: &str = "Maprisma Narrator";
 static AUTOSIZE_ID: LazyLock<Id> = LazyLock::new(|| Id::new("maprisma-narrator-autosize"));
 
 const GREEN: Color = Color::from_rgb(
@@ -108,6 +115,29 @@ struct Narrator {
     paused: bool,
     speed: Option<f32>, // while the slider is being moved
     busy: bool,         // a request is on its way
+    shot: Shot,
+    look: Look,
+    corners: Corners,
+    screenshot_key: bool,
+}
+
+/// Settings › F12 saves a screenshot (on unless `"screenshot_key": false`) and › Corners
+/// (`"corners"`), set in the settings window and kept in the same settings.json as its language.
+fn look_settings() -> (bool, Corners) {
+    let config = std::env::var_os("XDG_CONFIG_HOME")
+        .filter(|v| !v.is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".config")
+        });
+    let saved = std::fs::read_to_string(config.join("maprisma-narrator/settings.json"))
+        .ok()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .unwrap_or(Value::Null);
+    (
+        saved.get("screenshot_key").and_then(Value::as_bool) != Some(false),
+        Corners::parse(saved.get("corners").and_then(Value::as_str).unwrap_or("")),
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -124,6 +154,7 @@ enum Message {
     SpeedDone,
     Step,
     OpenSettings,
+    Shot(ShotMsg),
 }
 
 impl Narrator {
@@ -290,9 +321,17 @@ impl Narrator {
             .into()
     }
 
+    fn read_look(&mut self) -> Task<Message> {
+        (self.screenshot_key, self.corners) = look_settings();
+        self.look.apply(&self.core, self.corners)
+    }
+
     fn close_popup(&mut self) -> Task<Message> {
         match self.popup.take() {
-            Some(popup) => destroy_popup(popup),
+            Some(popup) => {
+                self.shot.closed(popup);
+                destroy_popup(popup)
+            }
             None => Task::none(),
         }
     }
@@ -320,13 +359,13 @@ impl cosmic::Application for Narrator {
     }
 
     fn init(core: Core, _flags: ()) -> (Self, Task<Message>) {
-        (
-            Self {
-                core,
-                ..Default::default()
-            },
-            Task::done(cosmic::Action::App(Message::Poll)),
-        )
+        let mut app = Self {
+            core,
+            shot: Shot::new(SHOT_FOLDER),
+            ..Default::default()
+        };
+        let look = app.read_look();
+        (app, Task::batch([look, Task::done(cosmic::Action::App(Message::Poll))]))
     }
 
     fn on_close_requested(&self, id: window::Id) -> Option<Message> {
@@ -337,6 +376,7 @@ impl cosmic::Application for Narrator {
         Subscription::batch(vec![
             rectangle_tracker_subscription(0).map(|update| Message::Rectangle(update.1)),
             cosmic::iced::time::every(Duration::from_secs(1)).map(|_| Message::Poll),
+            Shot::subscription().map(Message::Shot),
             Subscription::run_with("maprisma-narrator-desktop", |_| {
                 stream::channel(
                     1,
@@ -352,15 +392,28 @@ impl cosmic::Application for Narrator {
         match message {
             // Light poll for the icon; while the menu is open the full state instead.
             Message::Poll => {
+                let look = self.read_look();
                 if self.popup.is_some() {
                     if !self.busy {
-                        return Task::perform(request(json!({"command": "status"})), |s| {
+                        let status = Task::perform(request(json!({"command": "status"})), |s| {
                             cosmic::Action::App(Message::State(s))
                         });
+                        return Task::batch([look, status]);
                     }
                 } else {
-                    return Task::perform(watch(), |s| cosmic::Action::App(Message::Watched(s)));
+                    let watched =
+                        Task::perform(watch(), |s| cosmic::Action::App(Message::Watched(s)));
+                    return Task::batch([look, watched]);
                 }
+                return look;
+            }
+            Message::Shot(message) => {
+                // F12 takes the open popup, not the panel button.
+                let ours = match &message {
+                    ShotMsg::Key(id) => self.popup == Some(*id),
+                    _ => true,
+                };
+                return self.shot.update(message, self.screenshot_key, ours, Message::Shot);
             }
             Message::Watched(state) => self.set_reading(state.as_ref()),
             Message::State(state) => {
@@ -422,6 +475,7 @@ impl cosmic::Application for Narrator {
                 RectangleUpdate::Init(tracker) => self.tracker = Some(tracker),
             },
             Message::CloseRequested(id) => {
+                self.shot.closed(id);
                 if self.popup == Some(id) {
                     self.popup = None;
                 }
@@ -493,8 +547,20 @@ impl cosmic::Application for Narrator {
         autosize::autosize(content, AUTOSIZE_ID.clone()).into()
     }
 
-    fn view_window(&self, _id: window::Id) -> Element<'_, Message> {
-        self.core.applet.popup_container(self.menu()).into()
+    fn view_window(&self, id: window::Id) -> Element<'_, Message> {
+        let content = match self.shot.card(id, Message::Shot) {
+            Some(card) => column![card, self.menu()].width(Length::Fixed(POPUP_WIDTH)).into(),
+            None => self.menu(),
+        };
+        self.core.applet.popup_container(content).into()
+    }
+
+    fn system_theme_update(
+        &mut self,
+        _keys: &[&'static str],
+        _theme: &cosmic::cosmic_theme::Theme,
+    ) -> Task<Message> {
+        self.look.apply(&self.core, self.corners)
     }
 
     fn style(&self) -> Option<cosmic::iced::theme::Style> {

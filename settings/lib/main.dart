@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 
 import 'bridge.dart';
 import 'desktop_theme.dart';
+import 'look.dart';
 import 'settings_page.dart';
+import 'shot.dart';
 
 void main() {
   runApp(SettingsApp(bridge: Bridge()));
@@ -35,19 +37,26 @@ class _SettingsAppState extends State<SettingsApp> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String>(
       valueListenable: interfaceLanguage,
-      builder: (context, language, _) => ValueListenableBuilder<Color?>(
-        valueListenable: _desktop.accent,
-        builder: (context, accent, _) => MaterialApp(
-          title: tr('Maprisma Narrator'),
-          debugShowCheckedModeBanner: false,
-          themeMode: ThemeMode.system,
-          theme: DesktopTheme.theme(Brightness.light, accent),
-          darkTheme: DesktopTheme.theme(Brightness.dark, accent),
-          builder: (context, child) {
-            _desktop.syncHeader(Theme.of(context));
-            return child!;
-          },
-          home: SettingsPage(bridge: widget.bridge),
+      builder: (context, language, _) => ValueListenableBuilder<LookSettings>(
+        valueListenable: look,
+        builder: (context, settings, _) => ValueListenableBuilder<Color?>(
+          valueListenable: _desktop.accent,
+          builder: (context, accent, _) => MaterialApp(
+            title: tr('Maprisma Narrator'),
+            debugShowCheckedModeBanner: false,
+            navigatorKey: shotNavigator,
+            scaffoldMessengerKey: shotMessenger,
+            themeMode: ThemeMode.system,
+            theme: DesktopTheme.theme(Brightness.light, accent,
+                radius: cornerRadius(settings.corners, desktopRadius(Brightness.light))),
+            darkTheme: DesktopTheme.theme(Brightness.dark, accent,
+                radius: cornerRadius(settings.corners, desktopRadius(Brightness.dark))),
+            builder: (context, child) {
+              _desktop.syncHeader(Theme.of(context));
+              return ShotScope(child: child!);
+            },
+            home: SettingsPage(bridge: widget.bridge),
+          ),
         ),
       ),
     );

@@ -59,7 +59,7 @@ void main() {
     await tester.pump();
     for (final text in ['Install voice', 'Last problem', 'Reading', 'Selected area (800×600 px)', 'Voice',
         'Kokoro model updates', 'Update', 'Qwen voice', 'Speech server', 'Models on the server', 'Translation',
-        'Translator', 'Test translation', 'Saved token of the server in use']) {
+        'Translator', 'Test translation', 'Saved token of the server in use', 'Corners', 'F12 saves a screenshot']) {
       expect(find.text(text), findsWidgets, reason: text);
     }
     await tester.tap(find.text('Install voice'));

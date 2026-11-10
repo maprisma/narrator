@@ -191,5 +191,17 @@
   "Translation test failed: {0}": "Falha no teste de tradução: {0}",
   "Kokoro installed for {0}": "Kokoro instalado para {0}",
   "Maprisma Narrator": "Maprisma Narrator",
-  "System default": "Predefinição do sistema"
+  "System default": "Predefinição do sistema",
+  "Screenshot saved": "Captura guardada",
+  "Saved as {0}": "Guardada como {0}",
+  "What is wrong? (optional)": "O que está mal? (opcional)",
+  "Done": "Concluído",
+  "F12 saves a screenshot": "F12 guarda uma captura de ecrã",
+  "Corners": "Cantos",
+  "Square": "Retos",
+  "The screenshot could not be saved: {0}": "Não foi possível guardar a captura: {0}",
+  "The note could not be saved: {0}": "Não foi possível guardar a nota: {0}",
+  "Like the desktop ({0} px)": "Como o ambiente de trabalho ({0} px)",
+  "Slightly rounded ({0} px)": "Levemente arredondados ({0} px)",
+  "Rounded ({0} px)": "Arredondados ({0} px)"
 }
