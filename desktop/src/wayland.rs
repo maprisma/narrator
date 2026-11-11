@@ -157,11 +157,17 @@ pub fn run(shared: Shared, commands: Channel<Command>) -> Result<(), String> {
     let (globals, mut queue) = registry_queue_init::<App>(&conn).map_err(|e| e.to_string())?;
     let qh = queue.handle();
     let registry = RegistryState::new(&globals);
-    let toplevels = ToplevelInfoState::try_new(&registry, &qh);
     // Hyprland lists its windows through its own socket (hypr.rs), KWin through scripts
-    // (kde.rs); COSMIC through the toplevel protocols below.
+    // (kde.rs); COSMIC through the toplevel protocols below. On Hyprland they are not
+    // even bound: Hyprland offers ext-foreign-toplevel-list, whose events would reach
+    // the toplevel handlers without their state.
     let hypr = crate::hypr::requested();
     crate::hypr::ENABLED.store(hypr, std::sync::atomic::Ordering::Release);
+    let toplevels = if hypr {
+        None
+    } else {
+        ToplevelInfoState::try_new(&registry, &qh)
+    };
     let kde = !hypr
         && (crate::kde::requested()
             || toplevels
