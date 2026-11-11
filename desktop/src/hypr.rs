@@ -149,11 +149,17 @@ impl Hypr {
                 loop {
                     match tokio::time::timeout(Duration::from_secs(10), lines.next_line()).await {
                         Ok(Ok(Some(_))) => {
-                            // Let the rest of a burst (open, focus, move) arrive first.
+                            // Let the rest of a burst (open, focus, move) arrive first, but
+                            // at most 100 ms: a window that changes its title all the time
+                            // must not hold the refresh back.
                             tokio::time::sleep(Duration::from_millis(30)).await;
-                            while let Ok(Ok(Some(_))) =
-                                tokio::time::timeout(Duration::from_millis(5), lines.next_line()).await
-                            {}
+                            let until = tokio::time::Instant::now() + Duration::from_millis(100);
+                            while tokio::time::Instant::now() < until {
+                                match tokio::time::timeout(Duration::from_millis(5), lines.next_line()).await {
+                                    Ok(Ok(Some(_))) => {}
+                                    _ => break,
+                                }
+                            }
                         }
                         Ok(Ok(None)) => return Err::<(), String>("event socket closed".into()),
                         Ok(Err(e)) => return Err(e.to_string()),
