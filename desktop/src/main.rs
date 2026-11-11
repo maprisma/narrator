@@ -8,6 +8,7 @@
 // only goes into the reader's private runtime folder. Tools: grim (screenshots), slurp
 // (area) and wtype (keys).
 
+mod hypr;
 mod kde;
 mod wayland;
 
@@ -204,6 +205,7 @@ fn write_png(path: &Path, width: usize, height: usize, rgb: &[u8]) -> std::io::R
 struct Desktop {
     shared: Shared,
     kde: Option<kde::Kde>,
+    hypr: Option<hypr::Hypr>,
     commands: Mutex<Sender<Command>>,
 }
 
@@ -268,6 +270,23 @@ impl Desktop {
             .ok_or(format!("window {address} is gone"))?;
         if !window.shown {
             return Err(format!("window {address} is not on screen"));
+        }
+        if self.hypr.is_some() {
+            // grim cannot capture one Hyprland window by itself: the window's part of the
+            // screen (it is on screen; a floating window over it would show too).
+            let (x, y, w, h) = area;
+            let inside = x >= window.at.0
+                && y >= window.at.1
+                && x + w <= window.at.0 + window.size.0
+                && y + h <= window.at.1 + window.size.1;
+            if !inside {
+                return Err(format!("{x},{y} {w}x{h} is outside window {address}"));
+            }
+            return if self.capture_area(&format!("{x},{y} {w}x{h}"), path).await {
+                Ok(())
+            } else {
+                Err("screen capture failed".into())
+            };
         }
         let kde_picture;
         let cosmic_picture;
@@ -425,6 +444,10 @@ impl Desktop {
             self.hide(true).await;
             if let Some(kde) = &self.kde {
                 let _ = kde.refresh(Some(&address)).await;
+            } else if let Some(hypr) = &self.hypr {
+                if let Err(e) = hypr.activate(&address).await {
+                    eprintln!("[Maprisma Narrator] Hyprland focus: {e}");
+                }
             } else {
                 self.send(Command::Activate(address.clone()));
             }
@@ -464,6 +487,8 @@ impl Desktop {
             {
                 if let Some(kde) = &self.kde {
                     let _ = kde.refresh(Some(&previous)).await;
+                } else if let Some(hypr) = &self.hypr {
+                    let _ = hypr.activate(&previous).await;
                 } else {
                     self.send(Command::Activate(previous));
                 }
@@ -584,10 +609,18 @@ fn main() {
             let _ = kde.refresh(None).await;
             tokio::spawn(kde.clone().poll());
         }
+        let hypr = hypr::enabled().then(|| hypr::Hypr::new(shared.clone()));
+        if let Some(hypr) = &hypr {
+            if let Err(e) = hypr.refresh().await {
+                eprintln!("[Maprisma Narrator] Hyprland: {e}");
+            }
+            tokio::spawn(hypr.clone().poll());
+        }
         let desktop_kde = kde.clone();
         let desktop = Desktop {
             shared,
             kde,
+            hypr,
             commands: Mutex::new(sender),
         };
         connection.object_server().at(PATH, desktop).await?;

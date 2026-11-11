@@ -19,4 +19,4 @@ Comment[pl]=Czytaj okna na głos
 Exec=maprisma-narrator-tray
 Icon=io.github.ubruckhaus.CosmicMaprismaNarrator-symbolic
 Terminal=false
-OnlyShowIn=KDE;
+OnlyShowIn=KDE;Hyprland;

@@ -104,6 +104,22 @@ the unchanged backend setup may still list/install them. `slurp` is required.
 Minimized windows and windows on other desktops are excluded from capture/key
 operations; temporary focus for a page turn is restored when still appropriate.
 
+## Hyprland
+
+On **Hyprland** (for example the Caelestia session) the same tray runs; its icon sits
+in the bar's system tray (Waybar). The autostart entry is `OnlyShowIn=KDE;Hyprland;`,
+so a Hyprland session that runs XDG autostart starts it at login.
+
+The helper selects Hyprland when `HYPRLAND_INSTANCE_SIGNATURE` names a running
+Hyprland. It reads the windows from Hyprland's IPC socket (the `hyprctl clients -j`
+JSON the reader was first written for) and keeps the list current from the event
+socket; a page turn focuses the book through a dispatch. Area captures use `grim`,
+the area selector `slurp`, page keys `wtype`, and the passage highlight is the same
+layer surface. grim cannot capture one Hyprland window by itself, so *Read the
+window* captures the window's part of the screen: a floating window over the book
+would show in the picture. Windows on other workspaces and hidden group tabs count
+as not on screen.
+
 Rust verification (offline registry required):
 
 ```sh

@@ -158,12 +158,17 @@ pub fn run(shared: Shared, commands: Channel<Command>) -> Result<(), String> {
     let qh = queue.handle();
     let registry = RegistryState::new(&globals);
     let toplevels = ToplevelInfoState::try_new(&registry, &qh);
-    let kde = crate::kde::requested()
-        || toplevels
-            .as_ref()
-            .is_none_or(|t| t.cosmic_toplevel_info.is_none());
+    // Hyprland lists its windows through its own socket (hypr.rs), KWin through scripts
+    // (kde.rs); COSMIC through the toplevel protocols below.
+    let hypr = crate::hypr::requested();
+    crate::hypr::ENABLED.store(hypr, std::sync::atomic::Ordering::Release);
+    let kde = !hypr
+        && (crate::kde::requested()
+            || toplevels
+                .as_ref()
+                .is_none_or(|t| t.cosmic_toplevel_info.is_none()));
     crate::kde::ENABLED.store(kde, std::sync::atomic::Ordering::Release);
-    let toplevels = if kde { None } else { toplevels };
+    let toplevels = if kde || hypr { None } else { toplevels };
     let compositor = CompositorState::bind(&globals, &qh).map_err(|e| e.to_string())?;
     let shm = Shm::bind(&globals, &qh).map_err(|e| e.to_string())?;
     let mut app = App {
