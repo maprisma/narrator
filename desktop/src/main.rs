@@ -430,11 +430,18 @@ impl Desktop {
         let valid = !key.is_empty()
             && key.len() <= 32
             && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
-        if !valid
-            || !reading().await
-            || !from_reader(connection, &header).await
-            || !self.shown(&address)
+        if !valid || !reading().await || !from_reader(connection, &header).await {
+            return false;
+        }
+        // On Hyprland the list can be up to 10 s old (event socket gone, a refresh failed):
+        // where a key goes is decided on a fresh one, or no key is sent.
+        if let Some(hypr) = &self.hypr
+            && let Err(e) = hypr.refresh().await
         {
+            eprintln!("[Maprisma Narrator] Hyprland: {e}");
+            return false;
+        }
+        if !self.shown(&address) {
             return false;
         }
         let previous = self.focused();
