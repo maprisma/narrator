@@ -342,8 +342,8 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
-// --toggle (the bar icon, as Maprisma Video Translator): close when the window is shown and
-// focused, else show and focus it (or open it).
+// --toggle (the bar icon, as Maprisma Video Translator): close when the window is shown
+// (focused or not), else show and focus it (or open it).
 static void toggle_activated(GSimpleAction* action, GVariant* parameter, gpointer user_data) {
   GtkApplication* app = GTK_APPLICATION(user_data);
   GList* windows = gtk_application_get_windows(app);
@@ -352,7 +352,8 @@ static void toggle_activated(GSimpleAction* action, GVariant* parameter, gpointe
     return;
   }
   GtkWindow* window = GTK_WINDOW(windows->data);
-  if (gtk_widget_get_visible(GTK_WIDGET(window)) && gtk_window_is_active(window)) {
+  // Shown, focused or not: a bar click takes the focus first (the maprisma-app rule).
+  if (gtk_widget_get_visible(GTK_WIDGET(window))) {
     gtk_window_close(window);
     return;
   }
