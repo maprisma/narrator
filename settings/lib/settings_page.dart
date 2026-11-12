@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import 'app_look.dart';
 import 'bridge.dart';
 import 'look.dart';
 import 'widgets.dart';
@@ -190,7 +191,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Settings › Corners and F12 saves a screenshot (look.dart; the applet reads them too).
   List<Widget> _lookRows(BuildContext context) {
-    final desktop = desktopRadius(Theme.of(context).brightness);
+    final desktop = desktopLook.value.rounding;
     void save(void Function() write) {
       try {
         write();
@@ -227,13 +228,13 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 20),
+          padding: const EdgeInsets.symmetric(vertical: AppSpace.lg),
           children: [
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -533,7 +534,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Sensitive(
       enabled: ready,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+        padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.md, AppSpace.sm),
         child: Row(
           children: [
             Expanded(
@@ -543,13 +544,13 @@ class _SettingsPageState extends State<SettingsPage> {
                 decoration: InputDecoration(
                   labelText: tr(title),
                   helperText: subtitle,
-                  helperStyle: missing.isNotEmpty ? TextStyle(color: theme.colorScheme.error) : null,
+                  helperStyle: missing.isNotEmpty ? theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error) : null,
                   border: InputBorder.none,
                   isDense: true,
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpace.sm),
             OutlinedButton(onPressed: () => _chooseFile(key, title), child: Text(tr('Choose…'))),
           ],
         ),

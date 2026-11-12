@@ -1,14 +1,11 @@
-// Follows the desktop's look: light/dark comes from Flutter (the XDG portal's color-scheme), the
-// accent color from the portal's accent-color (COSMIC, GNOME, KDE, ...), read by the GTK runner.
-// The runner's GTK header bar is painted in the same colors, so it is never a white bar on a
-// dark window.
+// The GTK runner's side of the look: the XDG portal's accent-color (the accent on desktops
+// whose palette desktop_look.dart does not read), and the runner's GTK header bar painted in the
+// page's colours, so it is never a white bar on a dark window. The theme itself is app_theme.dart.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'look.dart';
-
-const fallbackAccent = Color(0xFF3584E4);
+import 'app_theme.dart';
 
 class DesktopTheme {
   DesktopTheme({MethodChannel? channel}) : _channel = channel ?? const MethodChannel('maprisma_narrator/theme');
@@ -39,44 +36,14 @@ class DesktopTheme {
     return Color.from(alpha: 1, red: rgb[0], green: rgb[1], blue: rgb[2]);
   }
 
-  /// The window's theme; [radius] is Settings › Corners (see look.dart), null for Like the
-  /// desktop: Material's corners as they are.
-  static ThemeData theme(Brightness brightness, Color? accent, {double? radius}) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: accent ?? fallbackAccent,
-      brightness: brightness,
-      // Keeps primary close to the desktop accent instead of a muted tone of it.
-      dynamicSchemeVariant: accent == null ? DynamicSchemeVariant.tonalSpot : DynamicSchemeVariant.fidelity,
-    );
-    final base = ThemeData(
-      useMaterial3: true,
-      colorScheme: scheme,
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      cardTheme: const CardThemeData(elevation: 0),
-      // Material's default snack bar is the inverse surface: a white bar in a dark window.
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: scheme.surfaceContainerHighest,
-        contentTextStyle: TextStyle(color: scheme.onSurface),
-        actionTextColor: scheme.primary,
-        closeIconColor: scheme.onSurfaceVariant,
-        elevation: 0,
-        shape: Border(top: BorderSide(color: scheme.outlineVariant)),
-      ),
-    );
-    return radius == null ? base : withCorners(base, Corners(radius));
-  }
-
-  static String _hex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
-
   /// Paints the GTK header bar (and the window behind the Flutter view) like the page.
   void syncHeader(ThemeData theme) {
     final scheme = theme.colorScheme;
     final header = {
-      'background': _hex(scheme.surfaceContainer),
-      'foreground': _hex(scheme.onSurface),
-      'border': _hex(scheme.outlineVariant),
-      'surface': _hex(scheme.surface),
+      'background': colorHex(scheme.surfaceContainer),
+      'foreground': colorHex(scheme.onSurface),
+      'border': colorHex(scheme.outlineVariant),
+      'surface': colorHex(scheme.surface),
       'dark': theme.brightness == Brightness.dark,
     };
     final key = header.toString();

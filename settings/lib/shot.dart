@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import 'app_look.dart';
+import 'app_theme.dart';
 import 'i18n.dart';
 import 'look.dart';
 import 'screenshot.dart';
@@ -138,7 +140,7 @@ class _ScreenshotNoteDialogState extends State<ScreenshotNoteDialog> {
           children: [
             Text(trf('Saved as {0}', [homeShort(widget.path)]),
                 style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
             TextField(
               controller: _note,
               autofocus: true,
@@ -149,7 +151,7 @@ class _ScreenshotNoteDialogState extends State<ScreenshotNoteDialog> {
                 hintText: tr('What is wrong? (optional)'),
                 isDense: true,
                 counterText: '',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(cornersOf(context).control)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(cornerSizes(context).control)),
               ),
             ),
           ],

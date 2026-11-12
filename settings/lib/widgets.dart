@@ -1,7 +1,9 @@
 // Building blocks shaped like libadwaita preference groups and rows.
 
-import 'i18n.dart';
 import 'package:flutter/material.dart';
+
+import 'app_look.dart';
+import 'i18n.dart';
 
 /// A titled card of rows, like Adw.PreferencesGroup.
 class PrefGroup extends StatelessWidget {
@@ -20,18 +22,18 @@ class PrefGroup extends StatelessWidget {
       rows.add(child);
     }
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: AppSpace.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (title != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
-              child: Text(title!, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.fromLTRB(AppSpace.xs, 0, AppSpace.xs, AppSpace.xs),
+              child: Text(title!, style: theme.textTheme.titleSmall),
             ),
           if (description != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+              padding: const EdgeInsets.fromLTRB(AppSpace.xs, 0, AppSpace.xs, AppSpace.sm),
               child: Text(description!,
                   style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ),
@@ -88,7 +90,7 @@ class PrefRow extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 52),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.sm),
           child: Row(
             children: [
               Expanded(
@@ -96,19 +98,15 @@ class PrefRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(title, style: theme.textTheme.bodyLarge?.copyWith(color: color)),
+                    Text(title, style: theme.textTheme.bodyMedium?.copyWith(color: color)),
                     if (subtitle != null && subtitle!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(subtitle!,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: color ?? theme.colorScheme.onSurfaceVariant)),
-                      ),
+                      Text(subtitle!,
+                          style: theme.textTheme.bodySmall?.copyWith(color: color ?? theme.colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ),
               for (final suffix in suffixes)
-                Padding(padding: const EdgeInsets.only(left: 8), child: suffix),
+                Padding(padding: const EdgeInsets.only(left: AppSpace.sm), child: suffix),
             ],
           ),
         ),
@@ -175,7 +173,7 @@ class _EntryPrefRowState extends State<EntryPrefRow> {
     return Sensitive(
       enabled: widget.enabled,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.xs),
         child: Row(
           children: [
             Expanded(
@@ -199,7 +197,7 @@ class _EntryPrefRowState extends State<EntryPrefRow> {
                 onPressed: () => setState(() => _peek = !_peek),
               ),
             for (final suffix in widget.suffixes)
-              Padding(padding: const EdgeInsets.only(left: 8), child: suffix),
+              Padding(padding: const EdgeInsets.only(left: AppSpace.sm), child: suffix),
           ],
         ),
       ),
@@ -241,7 +239,7 @@ class ChoiceButton extends StatelessWidget {
           child: OutlinedButton(
             onPressed: options.isEmpty ? null : onPressed,
             style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
               alignment: Alignment.centerLeft,
             ),
             child: Row(
@@ -298,7 +296,7 @@ class _SearchDialogState extends State<_SearchDialog> {
     final shown = widget.options.where((o) => o.$2.toLowerCase().contains(query)).toList();
     return AlertDialog(
       title: Text(widget.title),
-      contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      contentPadding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
       content: SizedBox(
         width: 420,
         height: 420,
@@ -306,13 +304,13 @@ class _SearchDialogState extends State<_SearchDialog> {
           children: [
             TextField(
               autofocus: true,
-              decoration: InputDecoration(prefixIcon: Icon(Icons.search), isDense: true),
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), isDense: true),
               onChanged: (text) => setState(() => _query = text),
               onSubmitted: (_) {
                 if (shown.isNotEmpty) Navigator.pop(context, shown.first.$1);
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpace.sm),
             Expanded(
               child: ListView.builder(
                 itemCount: shown.length,
@@ -417,7 +415,7 @@ class _SpinFieldState extends State<SpinField> {
             controller: _text,
             focusNode: _focus,
             textAlign: TextAlign.center,
-            decoration: InputDecoration(isDense: true, border: InputBorder.none),
+            decoration: const InputDecoration(isDense: true, border: InputBorder.none),
             onSubmitted: _commit,
           ),
         ),
