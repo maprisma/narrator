@@ -35,8 +35,12 @@ Add **Maprisma Narrator** in **COSMIC Settings → Desktop → Panel → Applets
 
 - **Headphones icon in the panel.** Left click opens the menu with **Start**, **Pause**, **Stop**,
   the reader's status, **Read the active window**, **Select reading area…**, the reading speed and
-  **Settings…**. Right click starts or stops reading; middle click pauses. A green line appears under
-  the icon while reading (amber while paused).
+  **Settings…**; a second click or **Esc** closes it. Right click starts or stops reading; middle
+  click pauses. A green line appears under the icon while reading (amber while paused).
+- **Closing and size.** **Esc** in the settings window closes an open drop-down or dialog first,
+  then the window (as its close button; reading goes on). `maprisma-narrator --toggle` opens the
+  window, or closes it when it is in front (the KDE/Hyprland tray's click). The window keeps the
+  size you give it (`window.json` next to `settings.json`; not while maximised, fullscreen or tiled).
 - **First use.** The menu and the top card of **Maprisma Narrator** show what is missing and a
   **Set up automatically** button: it installs missing system packages (`imagemagick`, `tesseract`,
   `tesseract-data-<language>`, `mpv`, `libpulse`, `libnotify`, `grim`, `slurp`, `wtype`), a private
@@ -83,10 +87,10 @@ On **KDE Plasma 6.8 Wayland**, `./install.sh` also installs
 Log in again, or run the installed tray executable. Use either the tray or the
 COSMIC applet in a session. The tray supervises the same desktop helper.
 
-The tray's context menu offers Start, Pause/Resume, Stop, reader status, setup and
-repair actions, Read the active window, Select reading area…, Reset reading area,
-reading speed presets (0.60–2.00×), and Settings…. **Activate (normally left click)
-starts/stops reading; middle click pauses/resumes; right click opens the menu.**
+The tray's context menu offers Start (when off), Pause/Resume and Stop (while reading)
+and Settings…. **Activate (normally left click) opens the settings window, or closes it
+when it is in front (`maprisma-narrator --toggle`); middle click pauses/resumes; right
+click opens the menu, where reading is started and stopped.**
 The icon changes for reading/paused state and exposes the reader status in its tooltip.
 
 The helper selects KWin on KDE, or when the COSMIC window globals are absent.

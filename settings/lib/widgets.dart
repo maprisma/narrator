@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'app_look.dart';
 import 'i18n.dart';
+import 'window.dart';
 
 /// A titled card of rows, like Adw.PreferencesGroup.
 class PrefGroup extends StatelessWidget {
@@ -259,6 +260,9 @@ class ChoiceButton extends StatelessWidget {
       });
     }
     return MenuAnchor(
+      // Counted for Esc (window.dart): an open menu closes before the window does.
+      onOpen: () => openMenus.value++,
+      onClose: () => openMenus.value = openMenus.value > 0 ? openMenus.value - 1 : 0,
       menuChildren: [
         for (final option in options)
           MenuItemButton(
@@ -270,8 +274,17 @@ class ChoiceButton extends StatelessWidget {
             ),
           ),
       ],
-      builder: (context, controller, _) =>
-          face(() => controller.isOpen ? controller.close() : controller.open()),
+      // The open menu takes the keyboard focus, so Esc closes it before it closes the window.
+      builder: (context, controller, _) => Focus(
+        skipTraversal: true,
+        child: Builder(
+          builder: (context) => face(() {
+            if (controller.isOpen) return controller.close();
+            Focus.of(context).requestFocus();
+            controller.open();
+          }),
+        ),
+      ),
     );
   }
 }

@@ -2,8 +2,10 @@
 // settings window. It talks only to the backend's bridge.py.
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
 import 'bridge.dart';
@@ -13,17 +15,27 @@ import 'i18n.dart';
 import 'look.dart';
 import 'settings_page.dart';
 import 'shot.dart';
+import 'window.dart';
+
+/// The settings window (GTK runner): Esc closes it, its size is kept next to the settings.
+final appWindow = AppWindow(
+  channel: const MethodChannel('maprisma_narrator/window'),
+  file: () => File('${languageSettingsFile().parent.path}/window.json'),
+  defaultSize: const Size(640, 820),
+);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // The desktop's palette before the first frame: no flash of Material's colours.
   final watcher = DesktopLookWatcher();
   desktopLook.value = await watcher.read();
+  // The saved size before the window shows (it shows with the first frame).
+  await appWindow.restore();
   runApp(SettingsApp(bridge: Bridge(), lookWatcher: watcher));
 }
 
 class SettingsApp extends StatefulWidget {
-  const SettingsApp({super.key, required this.bridge, this.desktopTheme, this.lookWatcher});
+  const SettingsApp({super.key, required this.bridge, this.desktopTheme, this.lookWatcher, this.onClose});
 
   final Bridge bridge;
   final DesktopTheme? desktopTheme;
@@ -31,6 +43,10 @@ class SettingsApp extends StatefulWidget {
   /// Re-reads the desktop's look every 5 s and when the window gets the focus; null (tests):
   /// [desktopLook] stays as it is set.
   final DesktopLookWatcher? lookWatcher;
+
+  /// Esc with nothing open: closes the window like its close button (reading goes on: the
+  /// reader is its own service). Null: [appWindow]'s close.
+  final VoidCallback? onClose;
 
   @override
   State<SettingsApp> createState() => _SettingsAppState();
@@ -97,7 +113,7 @@ class _SettingsAppState extends State<SettingsApp> with WidgetsBindingObserver {
                   _desktop.syncHeader(Theme.of(context));
                   return ShotScope(child: child!);
                 },
-                home: SettingsPage(bridge: widget.bridge),
+                home: EscapeCloses(onClose: widget.onClose ?? appWindow.close, child: SettingsPage(bridge: widget.bridge)),
               );
             },
           ),

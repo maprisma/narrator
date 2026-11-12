@@ -1,7 +1,9 @@
 #[path = "../../translations/i18n.rs"]
 mod i18n;
 use i18n::{message, tr};
-// KDE StatusNotifierItem; Activate toggles reading; the menu (DBusMenu) has Start/Stop/Resume and Settings.
+// KDE StatusNotifierItem: left click (Activate) opens the settings window, or closes it when it is
+// in front (`maprisma-narrator --toggle`); middle click (SecondaryActivate) pauses or resumes; the
+// menu (DBusMenu) has Start, Pause/Resume, Stop and Settings.
 // Shared with the applet, which uses all of it; the tray only a part.
 #[allow(dead_code)]
 #[path = "../../applet/src/control.rs"]
@@ -27,8 +29,27 @@ struct Entry {
     enabled: bool,
     action: Option<Value>,
 }
+/// The settings window's command line: the icon's click toggles it, Settings… opens (or raises) it.
+fn window_args(payload: &Value) -> Option<&'static [&'static str]> {
+    match payload.get("window").and_then(Value::as_str)? {
+        "toggle" => Some(&["--toggle"]),
+        _ => Some(&[]),
+    }
+}
+/// Starts the settings window and reaps it when it ends (a `--toggle` ends at once).
+fn open_window(args: &[&str]) {
+    if let Ok(mut child) = std::process::Command::new(control::sibling("maprisma-narrator"))
+        .args(args)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        std::thread::spawn(move || child.wait());
+    }
+}
 fn model(s: &Value) -> Vec<Entry> {
-    // Two entries: one for the reader (Start, Stop or Resume, as it stands) and Settings.
+    // The reader (Start; or Pause/Resume and Stop while reading) and Settings.
     let enabled = control::flag(s, "enabled");
     let paused = control::flag(s, "paused");
     let ready = !control::flag(s, "setup_busy")
@@ -38,15 +59,16 @@ fn model(s: &Value) -> Vec<Entry> {
         && s.get("missing_packages")
             .and_then(Value::as_array)
             .is_none_or(|a| a.is_empty());
-    let reader = if !enabled {
-        (1, tr("Start").into(), ready, Some(json!({"command":"on"})))
-    } else if paused {
-        (1, tr("Resume").into(), true, Some(json!({"command":"pause"})))
+    let mut rows: Vec<(i32, String, bool, Option<Value>)> = if !enabled {
+        vec![(1, tr("Start").into(), ready, Some(json!({"command":"on"})))]
     } else {
-        (1, tr("Stop").into(), true, Some(json!({"command":"off"})))
+        let pause = if paused { tr("Resume") } else { tr("Pause") };
+        vec![
+            (2, pause.into(), true, Some(json!({"command":"pause"}))),
+            (3, tr("Stop").into(), true, Some(json!({"command":"off"}))),
+        ]
     };
-    let rows: Vec<(i32, String, bool, Option<Value>)> =
-        vec![reader, (9, tr("Settings…").into(), true, None)];
+    rows.push((9, tr("Settings…").into(), true, Some(json!({"window":"open"}))));
     rows.into_iter()
         .map(|(id, label, enabled, action)| Entry {
             id,
@@ -76,7 +98,7 @@ type Pixmaps = Vec<(i32, i32, Vec<u8>)>;
 #[interface(name = "org.kde.StatusNotifierItem")]
 impl Item {
     fn activate(&self, _x: i32, _y: i32) {
-        let _ = self.0.tx.send(json!({"command":"toggle"}));
+        let _ = self.0.tx.send(json!({"window":"toggle"}));
     }
     fn secondary_activate(&self, _x: i32, _y: i32) {
         let _ = self.0.tx.send(json!({"command":"pause"}));
@@ -180,8 +202,6 @@ impl Menu {
         if let Some(e) = rows.into_iter().find(|e| e.id == id && e.enabled) {
             if let Some(a) = e.action {
                 let _ = self.state.tx.send(a);
-            } else {
-                let _ = std::process::Command::new(control::sibling("maprisma-narrator")).spawn();
             }
         }
     }
@@ -344,7 +364,7 @@ async fn main() -> zbus::Result<()> {
     let mut timer = tokio::time::interval(Duration::from_secs(1));
     loop {
         tokio::select! {
-        Some(payload)=rx.recv()=>{let next=control::request(payload).await;if let Some(e)=next["error"].as_str(){eprintln!("[Maprisma Narrator] {e}");}else{update(&c,&state,&rev,next).await;}},
+        Some(payload)=rx.recv()=>if let Some(args)=window_args(&payload){open_window(args);}else{let next=control::request(payload).await;if let Some(e)=next["error"].as_str(){eprintln!("[Maprisma Narrator] {e}");}else{update(&c,&state,&rev,next).await;}},
         _=timer.tick()=>{
         let current=bus.get_name_owner("org.kde.StatusNotifierWatcher".try_into().unwrap()).await.map(|s|s.to_string()).unwrap_or_default();
         if current!=owner {owner.clear();if !current.is_empty(){if let Ok(p)=zbus::Proxy::new(&c,"org.kde.StatusNotifierWatcher","/StatusNotifierWatcher","org.kde.StatusNotifierWatcher").await {if p.call::<_,_,()>("RegisterStatusNotifierItem",&(c.unique_name().unwrap().as_str(),)).await.is_ok(){owner=current;}}}}
@@ -371,14 +391,51 @@ mod tests {
         assert!(off[0].enabled);
         assert_eq!(off[0].action, Some(json!({"command":"on"})));
         assert!(!row(json!({"enabled":false,"backend_ready":false}))[0].enabled);
+        // Reading: Pause and Stop (the click used to stop; now the menu and middle click do).
         let reading = row(json!({"enabled":true,"paused":false,"backend_ready":true}));
-        assert_eq!(reading[0].label, tr("Stop"));
-        assert_eq!(reading[0].action, Some(json!({"command":"off"})));
+        assert_eq!(reading.len(), 3);
+        assert_eq!(reading[0].label, tr("Pause"));
+        assert_eq!(reading[0].action, Some(json!({"command":"pause"})));
+        assert_eq!(reading[1].label, tr("Stop"));
+        assert_eq!(reading[1].action, Some(json!({"command":"off"})));
         let paused = row(json!({"enabled":true,"paused":true,"backend_ready":true}));
         assert_eq!(paused[0].label, tr("Resume"));
         assert_eq!(paused[0].action, Some(json!({"command":"pause"})));
-        assert_eq!(off[1].id, 9);
-        assert_eq!(off[1].label, tr("Settings…"));
-        assert_eq!(off[1].action, None);
+        assert_eq!(paused[1].action, Some(json!({"command":"off"})));
+        let settings = off.last().unwrap();
+        assert_eq!(settings.id, 9);
+        assert_eq!(settings.label, tr("Settings…"));
+        assert_eq!(settings.action, Some(json!({"window":"open"})));
+        let ids: Vec<i32> = reading.iter().map(|e| e.id).collect();
+        assert_eq!(ids, [2, 3, 9]);
+    }
+
+    #[test]
+    fn window_requests() {
+        assert_eq!(window_args(&json!({"window":"toggle"})), Some(&["--toggle"][..]));
+        assert_eq!(window_args(&json!({"window":"open"})), Some(&[][..]));
+        assert_eq!(window_args(&json!({"command":"toggle"})), None);
+    }
+
+    #[tokio::test]
+    async fn left_click_toggles_the_window_middle_click_pauses() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let item = Item(State { value: Arc::new(Mutex::new(json!({}))), tx });
+        item.activate(0, 0);
+        assert_eq!(rx.try_recv().unwrap(), json!({"window":"toggle"}));
+        item.secondary_activate(0, 0);
+        assert_eq!(rx.try_recv().unwrap(), json!({"command":"pause"}));
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn settings_entry_opens_the_window() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let state = State { value: Arc::new(Mutex::new(json!({"enabled":false,"backend_ready":true}))), tx };
+        let menu = Menu { state, revision: Arc::new(std::sync::atomic::AtomicU32::new(1)) };
+        menu.click(9, "clicked").await;
+        assert_eq!(rx.try_recv().unwrap(), json!({"window":"open"}));
+        menu.click(1, "clicked").await;
+        assert_eq!(rx.try_recv().unwrap(), json!({"command":"on"}));
     }
 }

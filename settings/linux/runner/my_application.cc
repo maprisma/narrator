@@ -14,6 +14,8 @@ struct _MyApplication {
   GDBusProxy* portal;
   GtkCssProvider* header_css;
   FlView* view;
+  FlMethodChannel* window_channel;
+  GtkWindow* window;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -171,6 +173,103 @@ static void setup_theme(MyApplication* self, FlView* view) {
                                             theme_method_cb, self, nullptr);
 }
 
+// --- The window (window.dart) ------------------------------------------------
+// Dart closes the window on Esc (as the close button: delete-event, so the app's exit handling
+// runs), sizes it before it is shown (the saved size, fitted to the screen's work area) and hears
+// every resize, which it saves unless the window is maximised, fullscreen or tiled.
+
+static double number_arg(FlValue* args, const char* key) {
+  if (args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_MAP) return 0;
+  FlValue* value = fl_value_lookup_string(args, key);
+  if (value == nullptr) return 0;
+  if (fl_value_get_type(value) == FL_VALUE_TYPE_INT) return fl_value_get_int(value);
+  if (fl_value_get_type(value) == FL_VALUE_TYPE_FLOAT) return fl_value_get_float(value);
+  return 0;
+}
+
+static FlValue* size_value(int width, int height) {
+  FlValue* map = fl_value_new_map();
+  fl_value_set_string_take(map, "width", fl_value_new_int(width));
+  fl_value_set_string_take(map, "height", fl_value_new_int(height));
+  return map;
+}
+
+static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
+                             gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  const gchar* name = fl_method_call_get_name(call);
+  g_autoptr(FlMethodResponse) response = nullptr;
+  if (self->window == nullptr) {
+    response = FL_METHOD_RESPONSE(fl_method_error_response_new("no-window", "No window", nullptr));
+  } else if (g_strcmp0(name, "close") == 0) {
+    gtk_window_close(self->window);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(name, "screen") == 0) {
+    GdkDisplay* display = gtk_widget_get_display(GTK_WIDGET(self->window));
+    GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(self->window));
+    GdkMonitor* monitor = gdk_window != nullptr
+                              ? gdk_display_get_monitor_at_window(display, gdk_window)
+                              : nullptr;
+    if (monitor == nullptr) monitor = gdk_display_get_primary_monitor(display);
+    if (monitor == nullptr && gdk_display_get_n_monitors(display) > 0)
+      monitor = gdk_display_get_monitor(display, 0);
+    if (monitor == nullptr) {
+      response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+    } else {
+      GdkRectangle area;
+      gdk_monitor_get_workarea(monitor, &area);
+      g_autoptr(FlValue) size = size_value(area.width, area.height);
+      response = FL_METHOD_RESPONSE(fl_method_success_response_new(size));
+    }
+  } else if (g_strcmp0(name, "resize") == 0) {
+    FlValue* args = fl_method_call_get_args(call);
+    int width = static_cast<int>(number_arg(args, "width"));
+    int height = static_cast<int>(number_arg(args, "height"));
+    if (width > 0 && height > 0) {
+      gtk_window_set_default_size(self->window, width, height);
+      gtk_window_resize(self->window, width, height);
+    }
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
+  fl_method_call_respond(call, response, nullptr);
+}
+
+static gboolean window_configure_cb(GtkWidget* widget, GdkEvent* event,
+                                    gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  if (self->window_channel == nullptr) return FALSE;
+  int width = 0, height = 0;
+  gtk_window_get_size(GTK_WINDOW(widget), &width, &height);
+  GdkWindow* gdk_window = gtk_widget_get_window(widget);
+  GdkWindowState state = gdk_window != nullptr ? gdk_window_get_state(gdk_window)
+                                               : static_cast<GdkWindowState>(0);
+  g_autoptr(FlValue) report = size_value(width, height);
+  fl_value_set_string_take(report, "maximized",
+                           fl_value_new_bool((state & GDK_WINDOW_STATE_MAXIMIZED) != 0));
+  fl_value_set_string_take(report, "fullscreen",
+                           fl_value_new_bool((state & GDK_WINDOW_STATE_FULLSCREEN) != 0));
+  fl_value_set_string_take(report, "tiled",
+                           fl_value_new_bool((state & GDK_WINDOW_STATE_TILED) != 0));
+  fl_method_channel_invoke_method(self->window_channel, "resized", report,
+                                  nullptr, nullptr, nullptr);
+  return FALSE;
+}
+
+static void setup_window(MyApplication* self, GtkWindow* window, FlView* view) {
+  self->window = window;
+  g_object_add_weak_pointer(G_OBJECT(window), reinterpret_cast<gpointer*>(&self->window));
+  FlEngine* engine = fl_view_get_engine(view);
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  self->window_channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(engine), "maprisma_narrator/window",
+      FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(self->window_channel,
+                                            window_method_cb, self, nullptr);
+  g_signal_connect(window, "configure-event", G_CALLBACK(window_configure_cb), self);
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -179,6 +278,12 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+  // One window: opening Maprisma Narrator again (panel menu, tray, launcher) brings it forward.
+  GList* windows = gtk_application_get_windows(GTK_APPLICATION(application));
+  if (windows != nullptr) {
+    gtk_window_present(GTK_WINDOW(windows->data));
+    return;
+  }
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
@@ -232,8 +337,26 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
   setup_theme(self, view);
+  setup_window(self, window, view);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
+}
+
+// --toggle (the bar icon, as Maprisma Video Translator): close when the window is shown and
+// focused, else show and focus it (or open it).
+static void toggle_activated(GSimpleAction* action, GVariant* parameter, gpointer user_data) {
+  GtkApplication* app = GTK_APPLICATION(user_data);
+  GList* windows = gtk_application_get_windows(app);
+  if (windows == nullptr) {
+    g_application_activate(G_APPLICATION(app));
+    return;
+  }
+  GtkWindow* window = GTK_WINDOW(windows->data);
+  if (gtk_widget_get_visible(GTK_WIDGET(window)) && gtk_window_is_active(window)) {
+    gtk_window_close(window);
+    return;
+  }
+  gtk_window_present(window);
 }
 
 // Implements GApplication::local_command_line.
@@ -241,13 +364,31 @@ static gboolean my_application_local_command_line(GApplication* application,
                                                   gchar*** arguments,
                                                   int* exit_status) {
   MyApplication* self = MY_APPLICATION(application);
-  // Strip out the first argument as it is the binary name.
-  self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
+  // Strip out the first argument as it is the binary name; --toggle is ours, not Dart's.
+  gboolean toggle = FALSE;
+  GPtrArray* kept = g_ptr_array_new();
+  for (gchar** arg = *arguments + 1; *arg != nullptr; arg++) {
+    if (g_strcmp0(*arg, "--toggle") == 0) {
+      toggle = TRUE;
+    } else {
+      g_ptr_array_add(kept, g_strdup(*arg));
+    }
+  }
+  g_ptr_array_add(kept, nullptr);
+  self->dart_entrypoint_arguments = reinterpret_cast<char**>(g_ptr_array_free(kept, FALSE));
 
   g_autoptr(GError) error = nullptr;
   if (!g_application_register(application, nullptr, &error)) {
     g_warning("Failed to register: %s", error->message);
     *exit_status = 1;
+    return TRUE;
+  }
+
+  if (toggle && g_application_get_is_remote(application)) {
+    g_action_group_activate_action(G_ACTION_GROUP(application), "toggle", nullptr);
+    GDBusConnection* bus = g_application_get_dbus_connection(application);
+    if (bus != nullptr) g_dbus_connection_flush_sync(bus, nullptr, nullptr);
+    *exit_status = 0;
     return TRUE;
   }
 
@@ -261,9 +402,10 @@ static gboolean my_application_local_command_line(GApplication* application,
 static void my_application_startup(GApplication* application) {
   // MyApplication* self = MY_APPLICATION(object);
 
-  // Perform any actions required at application startup.
-
   G_APPLICATION_CLASS(my_application_parent_class)->startup(application);
+  g_autoptr(GSimpleAction) toggle = g_simple_action_new("toggle", nullptr);
+  g_signal_connect(toggle, "activate", G_CALLBACK(toggle_activated), application);
+  g_action_map_add_action(G_ACTION_MAP(application), G_ACTION(toggle));
 }
 
 // Implements GApplication::shutdown.
@@ -283,6 +425,7 @@ static void my_application_dispose(GObject* object) {
     g_signal_handlers_disconnect_by_data(self->portal, self);
   g_clear_object(&self->portal);
   g_clear_object(&self->theme_channel);
+  g_clear_object(&self->window_channel);
   g_clear_object(&self->header_css);
   self->view = nullptr;
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
@@ -308,5 +451,5 @@ MyApplication* my_application_new() {
 
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID, "flags",
-                                     G_APPLICATION_NON_UNIQUE, nullptr));
+                                     G_APPLICATION_DEFAULT_FLAGS, nullptr));
 }

@@ -7,7 +7,8 @@ mod look;
 mod shot;
 mod shot_files;
 use shot::{Shot, ShotMsg};
-// Maprisma Narrator: the headphones in the panel. Left click opens the menu
+// Maprisma Narrator: the headphones in the panel. Left click opens the menu (again: closes it; Esc
+// closes it too)
 // (Start / Pause / Stop, what needs setting up, reading area, speed, settings); right
 // click starts or stops reading, middle click pauses. A green line under the icon while
 // reading, yellow while paused.
@@ -111,6 +112,25 @@ fn fill(line: Line, radius: f32) -> theme::Container<'static> {
 }
 
 // ------------------------------------------------------------------------- applet
+
+/// What Esc in a surface of the applet does: the screenshot note goes first (shot.rs skips it),
+/// then the popup closes; elsewhere (the panel button) nothing.
+#[derive(Debug, PartialEq)]
+enum Escape {
+    Note,
+    ClosePopup,
+    Nothing,
+}
+
+fn escape(id: window::Id, popup: Option<window::Id>, note: bool) -> Escape {
+    if note {
+        Escape::Note
+    } else if popup == Some(id) {
+        Escape::ClosePopup
+    } else {
+        Escape::Nothing
+    }
+}
 
 #[derive(Default)]
 struct Narrator {
@@ -421,6 +441,13 @@ impl cosmic::Application for Narrator {
                 }
                 return look;
             }
+            Message::Shot(ShotMsg::Escape(id)) => {
+                return match escape(id, self.popup, self.shot.showing(id)) {
+                    Escape::Note => self.shot.update(ShotMsg::Escape(id), self.screenshot_key, true, Message::Shot),
+                    Escape::ClosePopup => self.close_popup(),
+                    Escape::Nothing => Task::none(),
+                };
+            }
             Message::Shot(message) => {
                 // F12 takes the open popup, not the panel button.
                 let ours = match &message {
@@ -571,5 +598,20 @@ impl cosmic::Application for Narrator {
 
     fn style(&self) -> Option<cosmic::iced::theme::Style> {
         Some(cosmic::applet::style())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn escape_closes_the_note_first_then_the_popup() {
+        let popup = window::Id::unique();
+        let other = window::Id::unique();
+        assert_eq!(escape(popup, Some(popup), true), Escape::Note);
+        assert_eq!(escape(popup, Some(popup), false), Escape::ClosePopup);
+        assert_eq!(escape(other, Some(popup), false), Escape::Nothing);
+        assert_eq!(escape(popup, None, false), Escape::Nothing);
     }
 }
