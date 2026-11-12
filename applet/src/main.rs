@@ -3,6 +3,7 @@ mod i18n;
 use i18n::{message, tr};
 #[allow(dead_code)] // the shared copy of every Maprisma COSMIC app; not every part is used here
 mod corners;
+mod look;
 mod shot;
 mod shot_files;
 use shot::{Shot, ShotMsg};
@@ -45,16 +46,23 @@ const POPUP_WIDTH: f32 = 360.0;
 const SHOT_FOLDER: &str = "Maprisma Narrator";
 static AUTOSIZE_ID: LazyLock<Id> = LazyLock::new(|| Id::new("maprisma-narrator-autosize"));
 
-const GREEN: Color = Color::from_rgb(
-    0x33 as f32 / 255.0,
-    0xd1 as f32 / 255.0,
-    0x7a as f32 / 255.0,
-);
-const AMBER: Color = Color::from_rgb(
-    0xf6 as f32 / 255.0,
-    0xd3 as f32 / 255.0,
-    0x2d as f32 / 255.0,
-);
+/// The line under the panel icon: reading in the theme's success colour, paused in its
+/// warning colour (the desktop's green and yellow).
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Line {
+    Reading,
+    Paused,
+}
+
+impl Line {
+    fn color(self, theme: &cosmic::Theme) -> Color {
+        match self {
+            Line::Reading => theme.cosmic().success_color(),
+            Line::Paused => theme.cosmic().warning_color(),
+        }
+        .into()
+    }
+}
 
 fn main() -> cosmic::iced::Result {
     cosmic::applet::run::<Narrator>(())
@@ -91,9 +99,9 @@ fn dim_text(theme: &cosmic::Theme) -> iced_text::Style {
     }
 }
 
-fn fill(color: Color, radius: f32) -> theme::Container<'static> {
-    theme::Container::custom(move |_| iced_container::Style {
-        background: Some(Background::Color(color)),
+fn fill(line: Line, radius: f32) -> theme::Container<'static> {
+    theme::Container::custom(move |theme| iced_container::Style {
+        background: Some(Background::Color(line.color(theme))),
         border: Border {
             radius: radius.into(),
             ..Default::default()
@@ -157,11 +165,11 @@ enum Message {
 }
 
 impl Narrator {
-    fn line_color(&self) -> Option<Color> {
+    fn line_color(&self) -> Option<Line> {
         if self.paused {
-            Some(AMBER)
+            Some(Line::Paused)
         } else if self.reading {
-            Some(GREEN)
+            Some(Line::Reading)
         } else {
             None
         }
@@ -187,10 +195,11 @@ impl Narrator {
             Some(color) => container(space::horizontal())
                 .width(Length::Fixed(size as f32))
                 .height(Length::Fixed(2.0))
-                .class(fill(color, 1.0))
+                .class(fill(color, corners::now().small.min(1.0)))
                 .into(),
             None => space::vertical().height(Length::Fixed(2.0)).into(),
         };
+        // 2 px: the panel's icon slot (not a layout gap), as the Omarchy original.
         column![headphones, line]
             .spacing(2)
             .align_x(Alignment::Center)
@@ -213,7 +222,7 @@ impl Narrator {
             icon::from_name(ICON).size(24).symbolic(true).icon(),
             text::body(status).width(Length::Fill)
         ]
-        .spacing(10)
+        .spacing(12)
         .align_y(Alignment::Center);
 
         let idle = !self.busy;
@@ -256,12 +265,12 @@ impl Narrator {
                 self.reading
             ),
         ]
-        .spacing(6);
+        .spacing(8);
 
-        let mut top = column![header, controls].spacing(10);
+        let mut top = column![header, controls].spacing(12);
         if let Some(step) = loaded.then(|| next_step(state)).flatten() {
             let mut block =
-                column![text::caption(step.text).class(theme::Text::Custom(dim_text))].spacing(6);
+                column![text::caption(step.text).class(theme::Text::Custom(dim_text))].spacing(8);
             if !step.label.is_empty() {
                 block = block.push(
                     button::suggested(step.label).on_press_maybe(idle.then_some(Message::Step)),
@@ -306,7 +315,7 @@ impl Narrator {
                         .on_release(Message::SpeedDone),
                     text::body(format!("{speed:.2}×")).width(Length::Fixed(48.0)),
                 ]
-                .spacing(10)
+                .spacing(12)
                 .align_y(Alignment::Center),
             ));
         }
@@ -325,6 +334,9 @@ impl Narrator {
         self.screenshot_key = screenshot_key;
         self.corners = corners;
         corners::set_current(&self.corners);
+        // The desktop's colours and corners (Maprisma Theme can change them any time); the
+        // popup's view reads them (corners::apply), this only re-reads them (at most every 5 s).
+        look::refresh();
         Task::none()
     }
 
