@@ -1,7 +1,9 @@
 #[path = "../../translations/i18n.rs"]
 mod i18n;
-use i18n::{message, tr, trf};
-// KDE StatusNotifierItem; Activate toggles reading, secondary menu uses DBusMenu.
+use i18n::{message, tr};
+// KDE StatusNotifierItem; Activate toggles reading; the menu (DBusMenu) has Start/Stop/Resume and Settings.
+// Shared with the applet, which uses all of it; the tray only a part.
+#[allow(dead_code)]
 #[path = "../../applet/src/control.rs"]
 mod control;
 use serde_json::{Value, json};
@@ -26,6 +28,7 @@ struct Entry {
     action: Option<Value>,
 }
 fn model(s: &Value) -> Vec<Entry> {
+    // Two entries: one for the reader (Start, Stop or Resume, as it stands) and Settings.
     let enabled = control::flag(s, "enabled");
     let paused = control::flag(s, "paused");
     let ready = !control::flag(s, "setup_busy")
@@ -35,66 +38,15 @@ fn model(s: &Value) -> Vec<Entry> {
         && s.get("missing_packages")
             .and_then(Value::as_array)
             .is_none_or(|a| a.is_empty());
-    let mut rows = vec![
-        (
-            1,
-            tr("Start").into(),
-            ready && !enabled,
-            Some(json!({"command":"on"})),
-        ),
-        (
-            2,
-            if paused { tr("Resume") } else { tr("Pause") }.into(),
-            enabled,
-            Some(json!({"command":"pause"})),
-        ),
-        (3, tr("Stop").into(), enabled, Some(json!({"command":"off"}))),
-        (
-            4,
-            s.get("status")
-                .and_then(Value::as_str)
-                .map(message).unwrap_or_else(|| tr("Reader unavailable").into())
-                .into(),
-            false,
-            None,
-        ),
-        (
-            5,
-            tr("Read the active window").into(),
-            enabled,
-            Some(json!({"command":"read"})),
-        ),
-        (
-            6,
-            tr("Select reading area…").into(),
-            ready,
-            Some(json!({"command":"select-area"})),
-        ),
-        (
-            7,
-            tr("Reset reading area").into(),
-            ready,
-            Some(json!({"command":"clear-area"})),
-        ),
-    ];
-    if let Some(step) = control::next_step(s) {
-        rows.push((
-            8,
-            format!("{}: {}", step.label, step.text),
-            !step.label.is_empty(),
-            step.payload,
-        ));
-    }
-    let speed = s["settings"]["speed"].as_f64().unwrap_or(1.0);
-    for (i, v) in [0.6, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].iter().enumerate() {
-        rows.push((
-            20 + i as i32,
-            trf("Reading speed {0}×{1}", &[&format!("{v:.2}"), if (speed - v).abs() < 0.01 { " ✓" } else { "" }]),
-            true,
-            Some(json!({"command":"configure","settings":{"speed":v}})),
-        ));
-    }
-    rows.push((9, tr("Settings…").into(), true, None));
+    let reader = if !enabled {
+        (1, tr("Start").into(), ready, Some(json!({"command":"on"})))
+    } else if paused {
+        (1, tr("Resume").into(), true, Some(json!({"command":"pause"})))
+    } else {
+        (1, tr("Stop").into(), true, Some(json!({"command":"off"})))
+    };
+    let rows: Vec<(i32, String, bool, Option<Value>)> =
+        vec![reader, (9, tr("Settings…").into(), true, None)];
     rows.into_iter()
         .map(|(id, label, enabled, action)| Entry {
             id,
@@ -412,21 +364,21 @@ mod tests {
     use super::*;
     #[test]
     fn menu_actions() {
-        let rows = model(
-            &json!({"enabled":true,"paused":true,"backend_ready":true,"settings":{"speed":1.25}}),
-        );
-        assert_eq!(rows.iter().find(|e| e.id == 2).unwrap().label, tr("Resume"));
-        assert!(!rows[0].enabled);
-        assert_eq!(
-            rows.iter().find(|e| e.id == 5).unwrap().action,
-            Some(json!({"command":"read"}))
-        );
-        assert_eq!(
-            rows.iter()
-                .filter(|e| (20..27).contains(&e.id))
-                .count(),
-            7
-        );
-        assert_eq!(rows.iter().filter(|e| e.id == 9).count(), 1);
+        let row = |v: Value| model(&v);
+        let off = row(json!({"enabled":false,"backend_ready":true}));
+        assert_eq!(off.len(), 2);
+        assert_eq!(off[0].label, tr("Start"));
+        assert!(off[0].enabled);
+        assert_eq!(off[0].action, Some(json!({"command":"on"})));
+        assert!(!row(json!({"enabled":false,"backend_ready":false}))[0].enabled);
+        let reading = row(json!({"enabled":true,"paused":false,"backend_ready":true}));
+        assert_eq!(reading[0].label, tr("Stop"));
+        assert_eq!(reading[0].action, Some(json!({"command":"off"})));
+        let paused = row(json!({"enabled":true,"paused":true,"backend_ready":true}));
+        assert_eq!(paused[0].label, tr("Resume"));
+        assert_eq!(paused[0].action, Some(json!({"command":"pause"})));
+        assert_eq!(off[1].id, 9);
+        assert_eq!(off[1].label, tr("Settings…"));
+        assert_eq!(off[1].action, None);
     }
 }
