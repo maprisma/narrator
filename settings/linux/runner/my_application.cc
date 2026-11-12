@@ -246,12 +246,16 @@ static gboolean window_configure_cb(GtkWidget* widget, GdkEvent* event,
   GdkWindowState state = gdk_window != nullptr ? gdk_window_get_state(gdk_window)
                                                : static_cast<GdkWindowState>(0);
   g_autoptr(FlValue) report = size_value(width, height);
+  // Hyprland reports every window as maximised and tiled, floating ones too: there only full
+  // screen means the size isn't the user's (the maprisma-app rule).
+  const gchar* hypr = g_getenv("HYPRLAND_INSTANCE_SIGNATURE");
+  gboolean on_hyprland = hypr != nullptr && hypr[0] != '\0';
   fl_value_set_string_take(report, "maximized",
-                           fl_value_new_bool((state & GDK_WINDOW_STATE_MAXIMIZED) != 0));
+                           fl_value_new_bool(!on_hyprland && (state & GDK_WINDOW_STATE_MAXIMIZED) != 0));
   fl_value_set_string_take(report, "fullscreen",
                            fl_value_new_bool((state & GDK_WINDOW_STATE_FULLSCREEN) != 0));
   fl_value_set_string_take(report, "tiled",
-                           fl_value_new_bool((state & GDK_WINDOW_STATE_TILED) != 0));
+                           fl_value_new_bool(!on_hyprland && (state & GDK_WINDOW_STATE_TILED) != 0));
   fl_method_channel_invoke_method(self->window_channel, "resized", report,
                                   nullptr, nullptr, nullptr);
   return FALSE;
