@@ -112,6 +112,18 @@ AccentColor=231,138,78
     expect(readDesktopLook(env: env, root: tmp.path), const DesktopLook());
   });
 
+  test('without XDG_CURRENT_DESKTOP: the session decides', () {
+    expect(desktopName({'XDG_SESSION_DESKTOP': 'KDE', 'DESKTOP_SESSION': 'plasma'}), 'kde');
+    expect(desktopName({'DESKTOP_SESSION': '/usr/share/wayland-sessions/plasmawayland.desktop'}), 'kde');
+    expect(desktopName({'XDG_SESSION_DESKTOP': 'COSMIC'}), 'cosmic');
+    expect(desktopName({'DESKTOP_SESSION': 'hyprland-uwsm'}), 'hyprland');
+    expect(desktopName({'HYPRLAND_INSTANCE_SIGNATURE': 'abc'}), 'hyprland');
+    expect(desktopName({'KDE_FULL_SESSION': 'true'}), 'kde');
+    expect(desktopName({'XDG_CURRENT_DESKTOP': '', 'DESKTOP_SESSION': 'gnome'}), 'other');
+    // a set XDG_CURRENT_DESKTOP still wins
+    expect(desktopName({'XDG_CURRENT_DESKTOP': 'GNOME', 'KDE_FULL_SESSION': 'true'}), 'other');
+  });
+
   test('the watcher: files every 5 s, hyprctl every 30 s', () async {
     env['XDG_CURRENT_DESKTOP'] = 'Hyprland';
     var asked = 0;

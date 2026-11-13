@@ -37,12 +37,30 @@ class DesktopLook {
   String toString() => 'DesktopLook($desktop, $colors, rounding: $rounding)';
 }
 
-/// COSMIC / KDE / Hyprland / other from XDG_CURRENT_DESKTOP.
+/// COSMIC / KDE / Hyprland / other from XDG_CURRENT_DESKTOP. Without it (a process started
+/// outside the session's environment) the session's other marks decide: XDG_SESSION_DESKTOP /
+/// DESKTOP_SESSION (names or session-file paths), then HYPRLAND_INSTANCE_SIGNATURE and
+/// KDE_FULL_SESSION (as the Rust apps' look.rs).
 String desktopName(Map<String, String> env) {
-  final names = (env['XDG_CURRENT_DESKTOP'] ?? '').toUpperCase().split(':');
+  final current = (env['XDG_CURRENT_DESKTOP'] ?? '').trim();
+  if (current.isEmpty) return _sessionDesktop(env);
+  final names = current.toUpperCase().split(':');
   if (names.contains('COSMIC')) return 'cosmic';
   if (names.contains('KDE')) return 'kde';
   if (names.contains('HYPRLAND')) return 'hyprland';
+  return 'other';
+}
+
+String _sessionDesktop(Map<String, String> env) {
+  final session = '${env['XDG_SESSION_DESKTOP'] ?? ''}:${env['DESKTOP_SESSION'] ?? ''}';
+  for (final part in session.split(':')) {
+    final name = part.split('/').last.replaceFirst(RegExp(r'\.desktop$'), '').toLowerCase();
+    if (name == 'cosmic' || name.startsWith('cosmic-')) return 'cosmic';
+    if (name == 'kde' || name.startsWith('plasma')) return 'kde';
+    if (name.startsWith('hyprland')) return 'hyprland';
+  }
+  if ((env['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty) return 'hyprland';
+  if ((env['KDE_FULL_SESSION'] ?? '').toLowerCase() == 'true') return 'kde';
   return 'other';
 }
 
