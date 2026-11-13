@@ -10,7 +10,7 @@ use shot::{Shot, ShotMsg};
 // Maprisma Narrator: the headphones in the panel. Left click opens the menu (again: closes it; Esc
 // closes it too)
 // (Start / Pause / Stop, what needs setting up, reading area, speed, settings); right
-// click starts or stops reading, middle click pauses. A green line under the icon while
+// click starts or stops reading, middle click pauses. An accent-coloured line under the icon while
 // reading, yellow while paused.
 //
 // The reader is a user service (ocrvox.service, set up from the menu); the applet talks
@@ -48,7 +48,7 @@ const SHOT_FOLDER: &str = "Maprisma Narrator";
 static AUTOSIZE_ID: LazyLock<Id> = LazyLock::new(|| Id::new("maprisma-narrator-autosize"));
 
 /// The line under the panel icon: reading in the theme's success colour, paused in its
-/// warning colour (the desktop's green and yellow).
+/// warning colour (the theme accent and yellow).
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Line {
     Reading,
@@ -58,7 +58,7 @@ enum Line {
 impl Line {
     fn color(self, theme: &cosmic::Theme) -> Color {
         match self {
-            Line::Reading => theme.cosmic().success_color(),
+            Line::Reading => theme.cosmic().accent_color(),
             Line::Paused => theme.cosmic().warning_color(),
         }
         .into()
@@ -101,7 +101,7 @@ fn dim_text(theme: &cosmic::Theme) -> iced_text::Style {
 }
 
 fn lit_svg() -> theme::Svg {
-    theme::Svg::custom(|theme: &cosmic::Theme| iced_svg::Style { color: Some(theme.cosmic().success_color().into()) })
+    theme::Svg::custom(|theme: &cosmic::Theme| iced_svg::Style { color: Some(theme.cosmic().accent_color().into()) })
 }
 
 fn fill(line: Line, radius: f32) -> theme::Container<'static> {

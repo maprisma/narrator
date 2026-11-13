@@ -21,8 +21,8 @@ const ITEM: &str = "/StatusNotifierItem";
 const MENU: &str = "/MenuBar";
 /// The bar icon when idle: a name of its own (the playing/paused states keep the theme's names).
 const ICON: &str = "io.github.ubruckhaus.CosmicMaprismaNarrator-symbolic";
-/// The headphones in the theme's green while reading: every Maprisma bar icon is "on" in this
-/// one colour (class ColorScheme-PositiveText; Maprisma Shell tints -active-symbolic green).
+/// The headphones in the theme accent while reading: every Maprisma bar icon is "on" in this
+/// one colour (class ColorScheme-Highlight; Maprisma Shell tints -active-symbolic green).
 const ICON_ACTIVE: &str = "io.github.ubruckhaus.CosmicMaprismaNarrator-active-symbolic";
 
 /// Reading: green headphones; paused: the pause sign; idle: white headphones.
@@ -423,7 +423,7 @@ mod tests {
         assert_eq!(icon_for(&json!({"enabled":false})), ICON);
         assert_eq!(icon_for(&Value::Null), ICON);
         let svg = include_str!("../../data/icons/io.github.ubruckhaus.CosmicMaprismaNarrator-active-symbolic.svg");
-        assert!(svg.contains(r#"class="ColorScheme-PositiveText""#) && !svg.contains("ColorScheme-Text"));
+        assert!(svg.contains(r#"class="ColorScheme-Highlight""#) && !svg.contains("ColorScheme-Text"));
         let install = include_str!("../../install.sh");
         assert!(install.contains("CosmicMaprismaNarrator-active-symbolic"));
     }
