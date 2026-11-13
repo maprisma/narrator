@@ -21,6 +21,20 @@ const ITEM: &str = "/StatusNotifierItem";
 const MENU: &str = "/MenuBar";
 /// The bar icon when idle: a name of its own (the playing/paused states keep the theme's names).
 const ICON: &str = "io.github.ubruckhaus.CosmicMaprismaNarrator-symbolic";
+/// The headphones in the theme's green while reading: every Maprisma bar icon is "on" in this
+/// one colour (class ColorScheme-PositiveText; Maprisma Shell tints -active-symbolic green).
+const ICON_ACTIVE: &str = "io.github.ubruckhaus.CosmicMaprismaNarrator-active-symbolic";
+
+/// Reading: green headphones; paused: the pause sign; idle: white headphones.
+fn icon_for(state: &Value) -> &'static str {
+    if control::flag(state, "paused") {
+        "media-playback-pause"
+    } else if control::flag(state, "enabled") {
+        ICON_ACTIVE
+    } else {
+        ICON
+    }
+}
 type Props = HashMap<String, OwnedValue>;
 #[derive(Clone, Debug, PartialEq)]
 struct Entry {
@@ -128,15 +142,7 @@ impl Item {
     }
     #[zbus(property)]
     async fn icon_name(&self) -> String {
-        let s = self.0.value.lock().await;
-        if control::flag(&s, "paused") {
-            "media-playback-pause"
-        } else if control::flag(&s, "enabled") {
-            "media-playback-start"
-        } else {
-            ICON
-        }
-        .into()
+        icon_for(&*self.0.value.lock().await).into()
     }
     #[zbus(property)]
     async fn attention_icon_name(&self) -> String {
@@ -408,6 +414,18 @@ mod tests {
         assert_eq!(settings.action, Some(json!({"window":"open"})));
         let ids: Vec<i32> = reading.iter().map(|e| e.id).collect();
         assert_eq!(ids, [2, 3, 9]);
+    }
+
+    #[test]
+    fn bar_icon_is_green_while_reading() {
+        assert_eq!(icon_for(&json!({"enabled":true,"paused":false})), ICON_ACTIVE);
+        assert_eq!(icon_for(&json!({"enabled":true,"paused":true})), "media-playback-pause");
+        assert_eq!(icon_for(&json!({"enabled":false})), ICON);
+        assert_eq!(icon_for(&Value::Null), ICON);
+        let svg = include_str!("../../data/icons/io.github.ubruckhaus.CosmicMaprismaNarrator-active-symbolic.svg");
+        assert!(svg.contains(r#"class="ColorScheme-PositiveText""#) && !svg.contains("ColorScheme-Text"));
+        let install = include_str!("../../install.sh");
+        assert!(install.contains("CosmicMaprismaNarrator-active-symbolic"));
     }
 
     #[test]

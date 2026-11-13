@@ -40,6 +40,9 @@ install -Dm755 target/release/maprisma-narrator-desktop "$bin/maprisma-narrator-
 # The bar icon (applet and idle tray) has a name of its own, so it can be changed without touching a theme.
 icon=io.github.ubruckhaus.CosmicMaprismaNarrator-symbolic
 install -Dm644 "data/icons/$icon.svg" "$data/icons/hicolor/scalable/apps/$icon.svg"
+# Reading: the same headphones in the theme's green (every Maprisma bar icon that is on).
+active=io.github.ubruckhaus.CosmicMaprismaNarrator-active-symbolic
+install -Dm644 "data/icons/$active.svg" "$data/icons/hicolor/scalable/apps/$active.svg"
 gtk-update-icon-cache -q -t "$data/icons/hicolor" 2>/dev/null || true
 
 mkdir -p "$data/maprisma-narrator"

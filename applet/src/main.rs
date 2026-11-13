@@ -25,7 +25,7 @@ use cosmic::app::{Core, Task};
 use cosmic::applet::cosmic_panel_config::PanelAnchor;
 use cosmic::applet::{menu_button, padded_control};
 use cosmic::iced::platform_specific::shell::wayland::commands::popup::destroy_popup;
-use cosmic::iced::widget::{container as iced_container, text as iced_text};
+use cosmic::iced::widget::{container as iced_container, svg as iced_svg, text as iced_text};
 use cosmic::iced::{
     Alignment, Background, Border, Color, Length, Rectangle, Subscription, stream, window,
 };
@@ -98,6 +98,10 @@ fn dim_text(theme: &cosmic::Theme) -> iced_text::Style {
         color: Some(color),
         ..Default::default()
     }
+}
+
+fn lit_svg() -> theme::Svg {
+    theme::Svg::custom(|theme: &cosmic::Theme| iced_svg::Style { color: Some(theme.cosmic().success_color().into()) })
 }
 
 fn fill(line: Line, radius: f32) -> theme::Container<'static> {
@@ -210,7 +214,11 @@ impl Narrator {
 
     fn panel_content(&self) -> Element<'_, Message> {
         let size = self.core.applet.suggested_size(true).0;
-        let headphones = icon::from_name(ICON).size(size).symbolic(true).icon();
+        let mut headphones = icon::from_name(ICON).size(size).symbolic(true).icon();
+        if self.reading && !self.paused {
+            // Green while reading, as every Maprisma bar icon that is on (Hue's lit bulb).
+            headphones = headphones.class(lit_svg());
+        }
         let line: Element<Message> = match self.line_color() {
             Some(color) => container(space::horizontal())
                 .width(Length::Fixed(size as f32))
