@@ -8,6 +8,18 @@ import bridge
 
 
 class SetupTests(unittest.TestCase):
+    def test_hyprland_only_in_its_own_session(self):
+        with tempfile.TemporaryDirectory() as run:
+            (Path(run) / 'hypr/live').mkdir(parents=True)
+            (Path(run) / 'hypr/live/.socket.sock').touch()
+            live = {'HYPRLAND_INSTANCE_SIGNATURE': 'live', 'XDG_RUNTIME_DIR': run}
+            self.assertTrue(bridge.on_hyprland({**live, 'XDG_CURRENT_DESKTOP': 'Hyprland'}))
+            self.assertTrue(bridge.on_hyprland(live))
+            # KDE / COSMIC with a stale or foreign signature: not Hyprland.
+            self.assertFalse(bridge.on_hyprland({**live, 'XDG_CURRENT_DESKTOP': 'KDE'}))
+            self.assertFalse(bridge.on_hyprland({'HYPRLAND_INSTANCE_SIGNATURE': 'gone', 'XDG_RUNTIME_DIR': run}))
+            self.assertFalse(bridge.on_hyprland({}))
+
     def test_selected_language_only_requires_its_ocr_data(self):
         with patch.object(setup, 'DATA', Path('/nonexistent-maprisma-narrator-test')), patch('setup_backend.shutil.which', return_value='/usr/bin/tool'), patch('setup_backend.subprocess.run') as run:
             run.return_value.stdout = 'eng'

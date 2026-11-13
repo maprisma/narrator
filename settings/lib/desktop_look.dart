@@ -39,8 +39,9 @@ class DesktopLook {
 
 /// COSMIC / KDE / Hyprland / other from XDG_CURRENT_DESKTOP. Without it (a process started
 /// outside the session's environment) the session's other marks decide: XDG_SESSION_DESKTOP /
-/// DESKTOP_SESSION (names or session-file paths), then HYPRLAND_INSTANCE_SIGNATURE and
-/// KDE_FULL_SESSION (as the Rust apps' look.rs).
+/// DESKTOP_SESSION (names or session-file paths), then HYPRLAND_INSTANCE_SIGNATURE (only when
+/// its socket exists: a stale one stays in the systemd user environment after a Hyprland
+/// session) and KDE_FULL_SESSION (as the Rust apps' look.rs).
 String desktopName(Map<String, String> env) {
   final current = (env['XDG_CURRENT_DESKTOP'] ?? '').trim();
   if (current.isEmpty) return _sessionDesktop(env);
@@ -59,9 +60,20 @@ String _sessionDesktop(Map<String, String> env) {
     if (name == 'kde' || name.startsWith('plasma')) return 'kde';
     if (name.startsWith('hyprland')) return 'hyprland';
   }
-  if ((env['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty) return 'hyprland';
+  if (hyprlandSocket(env)) return 'hyprland';
   if ((env['KDE_FULL_SESSION'] ?? '').toLowerCase() == 'true') return 'kde';
   return 'other';
+}
+
+/// Whether HYPRLAND_INSTANCE_SIGNATURE in [env] names a running instance: its socket
+/// `$XDG_RUNTIME_DIR/hypr/<signature>/.socket.sock` exists.
+bool hyprlandSocket(Map<String, String> env) {
+  final signature = (env['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').trim();
+  final runtime = env['XDG_RUNTIME_DIR'] ?? '';
+  if (signature.isEmpty || !runtime.startsWith('/') || !RegExp(r'^[A-Za-z0-9_][A-Za-z0-9_.-]*$').hasMatch(signature)) {
+    return false;
+  }
+  return FileSystemEntity.typeSync('$runtime/hypr/$signature/.socket.sock', followLinks: false) != FileSystemEntityType.notFound;
 }
 
 /// The look of the desktop in [env] (default: this process' environment). [root] is the file
@@ -198,10 +210,14 @@ String? _read(String path, int max) {
 
 // --- COSMIC ----------------------------------------------------------------------------------
 
+/// The user's config, else the system's defaults; in each the newest schema first (COSMIC 1.x
+/// keeps its themes in `v2` and leaves `v1` empty or stale; the Mode is still `v1`).
 String? _cosmicConfig(String config, String root, String component, String key) {
   for (final base in ['$config/cosmic', '${root.endsWith('/') ? root : '$root/'}usr/share/cosmic']) {
-    final text = _read('$base/$component/v1/$key', 256 * 1024);
-    if (text != null) return text;
+    for (final version in const ['v2', 'v1']) {
+      final text = _read('$base/$component/$version/$key', 256 * 1024);
+      if (text != null) return text;
+    }
   }
   return null;
 }

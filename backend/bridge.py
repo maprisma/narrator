@@ -113,10 +113,23 @@ def _matches_installed(source_dir, app):
     return True
 
 
+def on_hyprland(env):
+    """A Hyprland session: XDG_CURRENT_DESKTOP says so; only without it, HYPRLAND_INSTANCE_SIGNATURE
+    with its socket (a stale signature stays in the systemd user environment after Hyprland)."""
+    current = env.get('XDG_CURRENT_DESKTOP', '').strip()
+    if current:
+        return 'HYPRLAND' in [d.strip() for d in current.upper().split(':')]
+    signature = env.get('HYPRLAND_INSTANCE_SIGNATURE', '').strip()
+    runtime = env.get('XDG_RUNTIME_DIR', '')
+    if not signature or not runtime or signature.startswith('.') or '/' in signature:
+        return False
+    return (Path(runtime) / 'hypr' / signature / '.socket.sock').exists()
+
+
 def readiness(language):
     app = DATA / 'app'
     current = _matches_installed(ROOT / 'reader', app)
-    if not current and os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):
+    if not current and on_hyprland(os.environ):
         omarchy = Path.home() / '.config/omarchy/plugins/ubruckhaus.simple-reader/reader'
         if omarchy.is_dir():
             current = _matches_installed(omarchy, app)

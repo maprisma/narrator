@@ -107,6 +107,28 @@ AccentColor=231,138,78
     expect(look.isDark, isFalse);
   });
 
+  test('COSMIC 1.x: the theme in v2 (v1 empty), the user before the system', () {
+    env['XDG_CURRENT_DESKTOP'] = 'COSMIC';
+    file('.config/cosmic/com.system76.CosmicTheme.Mode/v1/is_dark').writeAsStringSync('true');
+    Directory('${tmp.path}/.config/cosmic/com.system76.CosmicTheme.Dark/v1').createSync(recursive: true);
+    const dir = '.config/cosmic/com.system76.CosmicTheme.Dark/v2';
+    file('$dir/accent').writeAsStringSync('(base: (red: 0.0, green: 0.5, blue: 1.0, alpha: 1.0))');
+    file('$dir/background').writeAsStringSync('(base: (red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0), on: (red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0))');
+    file('$dir/corner_radii').writeAsStringSync('(radius_0: (0.0, 0.0, 0.0, 0.0), radius_s: (4.0, 4.0, 4.0, 4.0), radius_m: (16.0, 16.0, 16.0, 16.0))');
+    // the system's defaults (v1) come only after the user's v2
+    file('usr/share/cosmic/com.system76.CosmicTheme.Dark/v1/accent').writeAsStringSync('(base: (red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0))');
+    file('usr/share/cosmic/com.system76.CosmicTheme.Dark/v1/corner_radii').writeAsStringSync('(radius_s: (12.0, 12.0, 12.0, 12.0))');
+    var look = readDesktopLook(env: env, root: tmp.path);
+    expect(look.colors['accent'], '#0080ff');
+    expect(look.colors['background'], '#1a1a1a');
+    expect(look.rounding, 4);
+    // nothing of the user's: the system's
+    Directory('${tmp.path}/.config/cosmic/com.system76.CosmicTheme.Dark').deleteSync(recursive: true);
+    look = readDesktopLook(env: env, root: tmp.path);
+    expect(look.colors['accent'], '#ff0000');
+    expect(look.rounding, 12);
+  });
+
   test('other desktops: nothing', () {
     env['XDG_CURRENT_DESKTOP'] = 'GNOME';
     expect(readDesktopLook(env: env, root: tmp.path), const DesktopLook());
@@ -117,7 +139,14 @@ AccentColor=231,138,78
     expect(desktopName({'DESKTOP_SESSION': '/usr/share/wayland-sessions/plasmawayland.desktop'}), 'kde');
     expect(desktopName({'XDG_SESSION_DESKTOP': 'COSMIC'}), 'cosmic');
     expect(desktopName({'DESKTOP_SESSION': 'hyprland-uwsm'}), 'hyprland');
-    expect(desktopName({'HYPRLAND_INSTANCE_SIGNATURE': 'abc'}), 'hyprland');
+    // Hyprland's signature only with its socket (a stale one stays after a Hyprland session).
+    expect(desktopName({'HYPRLAND_INSTANCE_SIGNATURE': 'abc'}), 'other');
+    file('run/hypr/abc/.socket.sock');
+    final run = '${tmp.path}/run';
+    expect(desktopName({'HYPRLAND_INSTANCE_SIGNATURE': 'abc', 'XDG_RUNTIME_DIR': run}), 'hyprland');
+    expect(desktopName({'HYPRLAND_INSTANCE_SIGNATURE': 'gone', 'XDG_RUNTIME_DIR': run}), 'other');
+    expect(desktopName({'HYPRLAND_INSTANCE_SIGNATURE': '../hypr/abc', 'XDG_RUNTIME_DIR': run}), 'other');
+    expect(desktopName({'XDG_CURRENT_DESKTOP': 'KDE', 'HYPRLAND_INSTANCE_SIGNATURE': 'abc', 'XDG_RUNTIME_DIR': run}), 'kde');
     expect(desktopName({'KDE_FULL_SESSION': 'true'}), 'kde');
     expect(desktopName({'XDG_CURRENT_DESKTOP': '', 'DESKTOP_SESSION': 'gnome'}), 'other');
     // a set XDG_CURRENT_DESKTOP still wins

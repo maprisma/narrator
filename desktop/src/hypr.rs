@@ -18,9 +18,22 @@ pub static ENABLED: AtomicBool = AtomicBool::new(false);
 pub fn enabled() -> bool {
     ENABLED.load(Ordering::Acquire)
 }
-/// A Hyprland session: its instance signature is set and its socket is there.
+/// A Hyprland session: XDG_CURRENT_DESKTOP names Hyprland, or (only without
+/// XDG_CURRENT_DESKTOP) its instance signature is set and its socket is there. A
+/// stale signature stays in the systemd user environment after a Hyprland session,
+/// and a Hyprland running in another session has a socket too: neither is this one.
 pub fn requested() -> bool {
-    socket_dir().is_some_and(|d| d.join(".socket.sock").exists())
+    session(
+        &std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default(),
+        || socket_dir().is_some_and(|d| d.join(".socket.sock").exists()),
+    )
+}
+
+pub fn session(current: &str, socket: impl FnOnce() -> bool) -> bool {
+    if current.trim().is_empty() {
+        return socket();
+    }
+    current.split(':').any(|d| d.trim().eq_ignore_ascii_case("hyprland"))
 }
 
 fn socket_dir() -> Option<PathBuf> {
@@ -182,6 +195,18 @@ impl Hypr {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hyprland_only_in_its_own_session() {
+        // KDE / COSMIC with a stale signature (or another session's Hyprland): not asked.
+        assert!(!session("KDE", || panic!("asked")));
+        assert!(!session("COSMIC", || panic!("asked")));
+        assert!(session("Hyprland", || false));
+        assert!(session("foo:hyprland", || false));
+        // No XDG_CURRENT_DESKTOP: only a live socket.
+        assert!(session("", || true));
+        assert!(!session(" ", || false));
+    }
     use serde_json::json;
 
     #[test]

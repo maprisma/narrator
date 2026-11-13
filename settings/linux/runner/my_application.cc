@@ -1,6 +1,7 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <string.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -109,18 +110,15 @@ static void set_header_colors(MyApplication* self, FlValue* args) {
   g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme",
                is_dark, nullptr);
   g_autofree gchar* css = g_strdup_printf(
-      "headerbar, headerbar:backdrop {"
-      "  background: %s; background-image: none; color: %s;"
-      "  border-bottom: 1px solid %s; box-shadow: none; }"
-      "headerbar .title, headerbar label { color: %s; }"
-      "headerbar:backdrop .title, headerbar:backdrop label,"
-      "headerbar:backdrop button { color: alpha(%s, 0.6); }"
-      "headerbar button { color: %s; background: transparent;"
-      "  background-image: none; border-color: transparent; box-shadow: none; }"
-      "headerbar button:hover { background: alpha(%s, 0.12); }"
-      "headerbar button:active { background: alpha(%s, 0.2); }"
-      "window, decoration { background: %s; }",
-      bg, fg, border, fg, fg, fg, fg, fg, surface);
+      // Colours only, as Maprisma Settings' runner: no button background, border or box
+      // overrides (on KDE's Breeze GTK theme they clipped the window buttons in half).
+      "headerbar, headerbar:backdrop, .titlebar, .titlebar:backdrop {"
+      " background: %s; background-image: none; color: %s;"
+      " border-color: %s; box-shadow: none; }"
+      " headerbar .title, headerbar button, headerbar button image {"
+      " color: %s; }"
+      " headerbar:backdrop .title, headerbar:backdrop button { color: alpha(%s, 0.7); }",
+      bg, fg, border, fg, fg);
   gtk_css_provider_load_from_data(self->header_css, css, -1, nullptr);
 
   if (self->view != nullptr) {
@@ -236,6 +234,28 @@ static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
   fl_method_call_respond(call, response, nullptr);
 }
 
+// A Hyprland session as the apps' look.rs / desktop_look.dart decide: XDG_CURRENT_DESKTOP; only
+// without it HYPRLAND_INSTANCE_SIGNATURE, and only when that instance's socket exists. A stale
+// signature stays in the systemd user environment after a Hyprland session, so on KDE or COSMIC
+// it must not turn off the maximised/tiled checks.
+static gboolean in_hyprland_session() {
+  const gchar* current = g_getenv("XDG_CURRENT_DESKTOP");
+  if (current != nullptr && current[0] != '\0') {
+    g_auto(GStrv) names = g_strsplit(current, ":", -1);
+    for (gchar** name = names; *name != nullptr; name++) {
+      if (g_ascii_strcasecmp(g_strstrip(*name), "Hyprland") == 0) return TRUE;
+    }
+    return FALSE;
+  }
+  const gchar* signature = g_getenv("HYPRLAND_INSTANCE_SIGNATURE");
+  const gchar* runtime = g_getenv("XDG_RUNTIME_DIR");
+  if (signature == nullptr || signature[0] == '\0' || signature[0] == '.' ||
+      strchr(signature, '/') != nullptr || runtime == nullptr || runtime[0] != '/')
+    return FALSE;
+  g_autofree gchar* socket = g_build_filename(runtime, "hypr", signature, ".socket.sock", nullptr);
+  return g_file_test(socket, G_FILE_TEST_EXISTS);
+}
+
 static gboolean window_configure_cb(GtkWidget* widget, GdkEvent* event,
                                     gpointer user_data) {
   MyApplication* self = MY_APPLICATION(user_data);
@@ -248,8 +268,7 @@ static gboolean window_configure_cb(GtkWidget* widget, GdkEvent* event,
   g_autoptr(FlValue) report = size_value(width, height);
   // Hyprland reports every window as maximised and tiled, floating ones too: there only full
   // screen means the size isn't the user's (the maprisma-app rule).
-  const gchar* hypr = g_getenv("HYPRLAND_INSTANCE_SIGNATURE");
-  gboolean on_hyprland = hypr != nullptr && hypr[0] != '\0';
+  gboolean on_hyprland = in_hyprland_session();
   fl_value_set_string_take(report, "maximized",
                            fl_value_new_bool(!on_hyprland && (state & GDK_WINDOW_STATE_MAXIMIZED) != 0));
   fl_value_set_string_take(report, "fullscreen",
