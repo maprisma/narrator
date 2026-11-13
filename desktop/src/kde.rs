@@ -34,17 +34,24 @@ const CALLBACK: &str = "/com/maprisma/Narrator/KWin";
 /// so a helper that starts again replaces the script of an earlier one).
 const WATCHER: &str = "maprisma_narrator_watch";
 
-/// KWin script code: `rows()` is every normal window as the reader's JSON,
-/// `send()` hands it to this helper (its unique bus name in [service]).
+/// KWin script code: `here(w)` is whether a window can be seen now (not
+/// minimised, on the current virtual desktop and in the current Activity; an
+/// empty `activities` list means all of them), `rows()` is every normal window
+/// as the reader's JSON, `send()` hands it to this helper (its unique bus name
+/// in [service]).
 fn rows_js(service: &str) -> String {
     format!(
-        r#"function rows() {{
+        r#"function here(w) {{
+  return !w.minimized && (w.onAllDesktops || w.desktops.indexOf(workspace.currentDesktop)>=0)
+    && (!w.activities || w.activities.length === 0 || w.activities.indexOf(workspace.currentActivity)>=0);
+}}
+function rows() {{
   return workspace.windowList().filter(function(w) {{ return w.normalWindow; }}).map(function(w) {{
     var g = w.frameGeometry;
     return {{address:String(w.internalId),pid:w.pid,title:w.caption,class:String(w.resourceClass || w.desktopFileName),
       at:[Math.round(g.x),Math.round(g.y)],size:[Math.round(g.width),Math.round(g.height)],
       focused:w===workspace.activeWindow,
-      shown:!w.minimized && (w.onAllDesktops || w.desktops.indexOf(workspace.currentDesktop)>=0)}};
+      shown:here(w)}};
   }});
 }}
 function send() {{ callDBus({service}, "{CALLBACK}", "com.maprisma.Narrator.KWin", "State", JSON.stringify(rows())); }}
@@ -147,7 +154,7 @@ impl Kde {
         let target = serde_json::to_string(&activate).unwrap();
         let source = format!(
             r#"{rows}var target = {target};
-if (target) workspace.windowList().forEach(function(w) {{ if (w.normalWindow && String(w.internalId) === target && !w.minimized && (w.onAllDesktops || w.desktops.indexOf(workspace.currentDesktop) >= 0)) workspace.activeWindow = w; }});
+if (target) workspace.windowList().forEach(function(w) {{ if (w.normalWindow && String(w.internalId) === target && here(w)) workspace.activeWindow = w; }});
 send();"#,
             rows = rows_js(self.connection.unique_name().unwrap().as_str())
         );
@@ -255,13 +262,14 @@ send();"#,
         std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
         let source = format!(
             r#"{rows}function hook(w) {{
-  ["frameGeometryChanged", "captionChanged", "minimizedChanged", "desktopsChanged"].forEach(function(n) {{ if (w[n]) w[n].connect(send); }});
+  ["frameGeometryChanged", "captionChanged", "minimizedChanged", "desktopsChanged", "activitiesChanged"].forEach(function(n) {{ if (w[n]) w[n].connect(send); }});
 }}
 workspace.windowList().forEach(hook);
 workspace.windowAdded.connect(function(w) {{ hook(w); send(); }});
 workspace.windowRemoved.connect(send);
 workspace.windowActivated.connect(send);
 workspace.currentDesktopChanged.connect(send);
+if (workspace.currentActivityChanged) workspace.currentActivityChanged.connect(send);
 send();"#,
             rows = rows_js(self.connection.unique_name().unwrap().as_str())
         );
@@ -504,6 +512,13 @@ mod tests {
     fn mapping() {
         let v = json!({"address":"{uuid}","pid":42,"title":"Book","class":"reader","at":[-20,4],"size":[800,600],"focused":true,"shown":false});
         assert_eq!(window(&v).unwrap().json(), v);
+    }
+    #[test]
+    fn shown_means_this_desktop_and_activity() {
+        let js = rows_js(":1.5");
+        assert!(js.contains("w.activities.indexOf(workspace.currentActivity)"));
+        assert!(js.contains("shown:here(w)"));
+        assert!(js.contains("callDBus(\":1.5\""));
     }
     #[test]
     fn keys() {
