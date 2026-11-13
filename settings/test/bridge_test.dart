@@ -99,6 +99,8 @@ void main() {
   test('resolveBridgeScript', () {
     expect(resolveBridgeScript({'SCREEN_NARRATOR_BACKEND': '/opt/b/', 'HOME': '/h'}), '/opt/b/bridge.py');
     expect(resolveBridgeScript({'HOME': '/h'}), '/h/.local/share/maprisma-narrator/backend/bridge.py');
+    expect(resolveBridgeScript({'HOME': '/h', 'XDG_DATA_HOME': '/x/data/'}), '/x/data/maprisma-narrator/backend/bridge.py');
+    expect(resolveBridgeScript({'HOME': '/h', 'XDG_DATA_HOME': 'relative'}), '/h/.local/share/maprisma-narrator/backend/bridge.py');
   });
 
   test('Bridge sends one JSON line and serializes requests', () async {

@@ -69,8 +69,11 @@ def main(argv):
             try:
                 call('OpenSettings')
             except RuntimeError:
+                import os
                 from pathlib import Path
-                app = Path.home() / '.local/share/maprisma-narrator/settings/maprisma-narrator'
+                data = os.environ.get('XDG_DATA_HOME', '')
+                data = Path(data) if data.startswith('/') else Path.home() / '.local/share'
+                app = data / 'maprisma-narrator/settings/maprisma-narrator'
                 subprocess.Popen([str(app) if app.is_file() else 'maprisma-narrator'],
                                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:

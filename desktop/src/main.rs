@@ -47,11 +47,28 @@ fn capture_file() -> PathBuf {
     wayland::runtime_dir().join("window.png")
 }
 
+// $XDG_DATA_HOME when it is an absolute path, else ~/.local/share (where install.sh puts
+// Maprisma Narrator's own files).
+fn data_home_from(xdg: Option<std::ffi::OsString>, home: &Path) -> PathBuf {
+    match xdg.map(PathBuf::from) {
+        Some(p) if p.is_absolute() => p,
+        _ => home.join(".local/share"),
+    }
+}
+
+fn data_home() -> PathBuf {
+    data_home_from(std::env::var_os("XDG_DATA_HOME"), &home())
+}
+
+// The reader's desktop helper. The reader's runtime keeps the Omarchy plugin's fixed folder
+// ~/.local/share/kindle-reader (setup_backend.py, the ocrvox unit's %h/.local/share), whatever
+// XDG_DATA_HOME says, so the caller check must look there too.
+fn helper_in(home: &Path) -> PathBuf {
+    home.join(".local/share/kindle-reader/app/cosmic_desktop.py")
+}
+
 fn helper() -> PathBuf {
-    let data = std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| home().join(".local/share"));
-    data.join("kindle-reader/app/cosmic_desktop.py")
+    helper_in(&home())
 }
 
 // "X,Y WxH" (slurp's and grim's format).
@@ -519,7 +536,7 @@ fn open_settings() {
     {
         candidates.push(dir.join("maprisma-narrator"));
     }
-    candidates.push(home().join(".local/share/maprisma-narrator/settings/maprisma-narrator"));
+    candidates.push(data_home().join("maprisma-narrator/settings/maprisma-narrator"));
     let program = candidates
         .into_iter()
         .find(|p| p.is_file())
@@ -669,4 +686,19 @@ fn main() {
         Ok(()) => {}
     }
     let _ = std::io::stderr().flush();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn data_folders() {
+        let home = Path::new("/h");
+        assert_eq!(data_home_from(None, home), PathBuf::from("/h/.local/share"));
+        assert_eq!(data_home_from(Some("/x/data".into()), home), PathBuf::from("/x/data"));
+        assert_eq!(data_home_from(Some("relative".into()), home), PathBuf::from("/h/.local/share"));
+        // The reader runtime stays where setup puts it, even with a custom XDG_DATA_HOME.
+        assert_eq!(helper_in(home), PathBuf::from("/h/.local/share/kindle-reader/app/cosmic_desktop.py"));
+    }
 }

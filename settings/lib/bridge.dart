@@ -9,15 +9,17 @@ import 'dart:io';
 typedef Json = Map<String, dynamic>;
 
 /// The bridge script: `$SCREEN_NARRATOR_BACKEND/bridge.py` when that variable names the
-/// backend directory, otherwise `~/.local/share/maprisma-narrator/backend/bridge.py`.
+/// backend directory, otherwise `$XDG_DATA_HOME/maprisma-narrator/backend/bridge.py` (default
+/// `~/.local/share`, where install.sh and the applet put and find it).
 String resolveBridgeScript([Map<String, String>? environment]) {
   final env = environment ?? Platform.environment;
   final backend = env['SCREEN_NARRATOR_BACKEND'];
   if (backend != null && backend.isNotEmpty) {
     return '${backend.replaceFirst(RegExp(r'/+$'), '')}/bridge.py';
   }
-  final home = env['HOME'] ?? '';
-  return '$home/.local/share/maprisma-narrator/backend/bridge.py';
+  final xdg = env['XDG_DATA_HOME'] ?? '';
+  final data = xdg.startsWith('/') ? xdg.replaceFirst(RegExp(r'/+$'), '') : '${env['HOME'] ?? ''}/.local/share';
+  return '$data/maprisma-narrator/backend/bridge.py';
 }
 
 /// The last line of the bridge's output as a JSON object, like bridge.js
