@@ -203,5 +203,6 @@
   "The note could not be saved: {0}": "Não foi possível guardar a nota: {0}",
   "Like the desktop ({0} px)": "Como o ambiente de trabalho ({0} px)",
   "Slightly rounded ({0} px)": "Levemente arredondados ({0} px)",
-  "Rounded ({0} px)": "Arredondados ({0} px)"
+  "Rounded ({0} px)": "Arredondados ({0} px)",
+  "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instale estes pacotes com o seu gestor de pacotes (nomes do Arch) e repita a configuração: {0}"
 }

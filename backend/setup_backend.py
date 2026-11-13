@@ -159,6 +159,9 @@ def install(language, backend_only=False, engine=None, ocr_language=None, transl
             raise RuntimeError(tr('An unmanaged ocrvox.service exists. Its configuration was preserved; choose a different service before setup.'))
         packages = missing_packages(ocr_language or language)
         if packages:
+            # The package names are Arch's (pacman); elsewhere the user installs them.
+            if not shutil.which('pacman'):
+                raise RuntimeError(trf('Install these packages with your package manager (Arch names), then retry setup: {0}', [', '.join(packages)]))
             report(trf('Authorize installation of: {0}', [', '.join(packages)]), 'packages')
             run(['pkexec', 'pacman', '-S', '--needed', '--noconfirm', *packages])
         report(tr('Preparing private Python runtime…'), 'runtime')

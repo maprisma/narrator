@@ -26,6 +26,16 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(piper.call_args.args[1], 'nl')
             self.assertFalse(any('install_kokoro.py' in str(c.args[0]) for c in run.call_args_list))
 
+    def test_without_pacman_setup_names_the_packages_instead(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            (base / 'source/reader').mkdir(parents=True)
+            which = lambda name: None if name == 'pacman' else '/usr/bin/' + name
+            with patch.object(setup, 'DATA', base / 'data'), patch.object(setup, 'UNIT', base / 'ocrvox.service'), patch.object(setup, 'ROOT', base / 'source'), patch.object(setup, 'missing_packages', return_value=['grim', 'slurp']), patch('setup_backend.shutil.which', side_effect=which), patch.object(setup, 'report'), patch.object(setup, 'run') as run:
+                with self.assertRaisesRegex(RuntimeError, 'grim, slurp'):
+                    setup.install('en', backend_only=True)
+            run.assert_not_called()
+
     def test_ocr_language_can_differ_from_voice_language(self):
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)

@@ -203,5 +203,6 @@
   "The note could not be saved: {0}": "La note n'a pas pu être enregistrée : {0}",
   "Like the desktop ({0} px)": "Comme le bureau ({0} px)",
   "Slightly rounded ({0} px)": "Légèrement arrondis ({0} px)",
-  "Rounded ({0} px)": "Arrondis ({0} px)"
+  "Rounded ({0} px)": "Arrondis ({0} px)",
+  "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installez ces paquets avec votre gestionnaire de paquets (noms Arch), puis relancez la configuration : {0}"
 }

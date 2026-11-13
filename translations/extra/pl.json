@@ -203,5 +203,6 @@
   "The note could not be saved: {0}": "Nie udało się zapisać notatki: {0}",
   "Like the desktop ({0} px)": "Jak pulpit ({0} px)",
   "Slightly rounded ({0} px)": "Lekko zaokrąglone ({0} px)",
-  "Rounded ({0} px)": "Zaokrąglone ({0} px)"
+  "Rounded ({0} px)": "Zaokrąglone ({0} px)",
+  "Install these packages with your package manager (Arch names), then retry setup: {0}": "Zainstaluj te pakiety menedżerem pakietów (nazwy z Arch), a potem ponów konfigurację: {0}"
 }

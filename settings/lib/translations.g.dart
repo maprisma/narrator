@@ -206,7 +206,8 @@ const translations = <String, Map<String, String>>{
     "The note could not be saved: {0}": "Die Notiz konnte nicht gespeichert werden: {0}",
     "Like the desktop ({0} px)": "Wie der Desktop ({0} px)",
     "Slightly rounded ({0} px)": "Leicht abgerundet ({0} px)",
-    "Rounded ({0} px)": "Abgerundet ({0} px)"
+    "Rounded ({0} px)": "Abgerundet ({0} px)",
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installieren Sie diese Pakete mit Ihrer Paketverwaltung (Arch-Namen) und starten Sie die Einrichtung erneut: {0}"
   },
   "fr": {
     "Language": "Langue",
@@ -413,7 +414,8 @@ const translations = <String, Map<String, String>>{
     "The note could not be saved: {0}": "La note n'a pas pu être enregistrée : {0}",
     "Like the desktop ({0} px)": "Comme le bureau ({0} px)",
     "Slightly rounded ({0} px)": "Légèrement arrondis ({0} px)",
-    "Rounded ({0} px)": "Arrondis ({0} px)"
+    "Rounded ({0} px)": "Arrondis ({0} px)",
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installez ces paquets avec votre gestionnaire de paquets (noms Arch), puis relancez la configuration : {0}"
   },
   "es": {
     "Language": "Idioma",
@@ -620,7 +622,8 @@ const translations = <String, Map<String, String>>{
     "The note could not be saved: {0}": "No se pudo guardar la nota: {0}",
     "Like the desktop ({0} px)": "Como el escritorio ({0} px)",
     "Slightly rounded ({0} px)": "Ligeramente redondeadas ({0} px)",
-    "Rounded ({0} px)": "Redondeadas ({0} px)"
+    "Rounded ({0} px)": "Redondeadas ({0} px)",
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instala estos paquetes con tu gestor de paquetes (nombres de Arch) y vuelve a iniciar la configuración: {0}"
   },
   "it": {
     "Language": "Lingua",
@@ -827,7 +830,8 @@ const translations = <String, Map<String, String>>{
     "The note could not be saved: {0}": "Impossibile salvare la nota: {0}",
     "Like the desktop ({0} px)": "Come il desktop ({0} px)",
     "Slightly rounded ({0} px)": "Leggermente arrotondati ({0} px)",
-    "Rounded ({0} px)": "Arrotondati ({0} px)"
+    "Rounded ({0} px)": "Arrotondati ({0} px)",
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installa questi pacchetti con il tuo gestore di pacchetti (nomi Arch), poi ripeti la configurazione: {0}"
   },
   "pt": {
     "Language": "Idioma",
@@ -1034,7 +1038,8 @@ const translations = <String, Map<String, String>>{
     "The note could not be saved: {0}": "Não foi possível guardar a nota: {0}",
     "Like the desktop ({0} px)": "Como o ambiente de trabalho ({0} px)",
     "Slightly rounded ({0} px)": "Levemente arredondados ({0} px)",
-    "Rounded ({0} px)": "Arredondados ({0} px)"
+    "Rounded ({0} px)": "Arredondados ({0} px)",
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instale estes pacotes com o seu gestor de pacotes (nomes do Arch) e repita a configuração: {0}"
   },
   "nl": {
     "Language": "Taal",
@@ -1241,7 +1246,8 @@ const translations = <String, Map<String, String>>{
     "The note could not be saved: {0}": "De notitie kon niet worden bewaard: {0}",
     "Like the desktop ({0} px)": "Zoals het bureaublad ({0} px)",
     "Slightly rounded ({0} px)": "Licht afgerond ({0} px)",
-    "Rounded ({0} px)": "Afgerond ({0} px)"
+    "Rounded ({0} px)": "Afgerond ({0} px)",
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installeer deze pakketten met je pakketbeheerder (Arch-namen) en start de installatie opnieuw: {0}"
   },
   "pl": {
     "Language": "Język",
@@ -1448,6 +1454,7 @@ const translations = <String, Map<String, String>>{
     "The note could not be saved: {0}": "Nie udało się zapisać notatki: {0}",
     "Like the desktop ({0} px)": "Jak pulpit ({0} px)",
     "Slightly rounded ({0} px)": "Lekko zaokrąglone ({0} px)",
-    "Rounded ({0} px)": "Zaokrąglone ({0} px)"
+    "Rounded ({0} px)": "Zaokrąglone ({0} px)",
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Zainstaluj te pakiety menedżerem pakietów (nazwy z Arch), a potem ponów konfigurację: {0}"
   }
 };

@@ -203,5 +203,6 @@
   "The note could not be saved: {0}": "De notitie kon niet worden bewaard: {0}",
   "Like the desktop ({0} px)": "Zoals het bureaublad ({0} px)",
   "Slightly rounded ({0} px)": "Licht afgerond ({0} px)",
-  "Rounded ({0} px)": "Afgerond ({0} px)"
+  "Rounded ({0} px)": "Afgerond ({0} px)",
+  "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installeer deze pakketten met je pakketbeheerder (Arch-namen) en start de installatie opnieuw: {0}"
 }
