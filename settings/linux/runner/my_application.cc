@@ -17,6 +17,8 @@ struct _MyApplication {
   FlView* view;
   FlMethodChannel* window_channel;
   GtkWindow* window;
+  // An RGBA window (App windows): the view's background stays see-through.
+  gboolean see_through;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -123,8 +125,10 @@ static void set_header_colors(MyApplication* self, FlValue* args) {
 
   if (self->view != nullptr) {
     GdkRGBA color;
-    if (gdk_rgba_parse(&color, surface))
+    if (gdk_rgba_parse(&color, surface)) {
+      if (self->see_through) color.alpha = 0;
       fl_view_set_background_color(self->view, &color);
+    }
   }
 }
 
@@ -309,6 +313,14 @@ static void my_application_activate(GApplication* application) {
   }
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  // Maprisma Settings › App windows (window_style.dart): an RGBA window, so a see-through
+  // background shows the desktop (Flutter paints the background itself).
+  GdkVisual* rgba_visual = gdk_screen_get_rgba_visual(gtk_widget_get_screen(GTK_WIDGET(window)));
+  if (rgba_visual != nullptr) {
+    gtk_widget_set_visual(GTK_WIDGET(window), rgba_visual);
+    gtk_widget_set_app_paintable(GTK_WIDGET(window), TRUE);
+  }
+  self->see_through = rgba_visual != nullptr;
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -348,6 +360,7 @@ static void my_application_activate(GApplication* application) {
   // Background defaults to black, override it here if necessary, e.g. #00000000
   // for transparent.
   gdk_rgba_parse(&background_color, "#000000");
+  if (rgba_visual != nullptr) background_color.alpha = 0;
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
