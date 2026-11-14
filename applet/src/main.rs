@@ -401,6 +401,8 @@ impl cosmic::Application for Narrator {
     }
 
     fn init(core: Core, _flags: ()) -> (Self, Task<Message>) {
+        let mut core = core;
+        crate::look::solid(&mut core);
         let mut app = Self {
             core,
             shot: Shot::new(SHOT_FOLDER),
