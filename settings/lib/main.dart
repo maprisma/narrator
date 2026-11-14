@@ -61,6 +61,10 @@ class _SettingsAppState extends State<SettingsApp> with WidgetsBindingObserver {
   /// Maprisma Settings › App windows: see-through windows for all Maprisma apps (window_style.dart).
   WindowStyleWatcher? _windowStyle;
 
+  /// Hyprland: the window's place, kept next to its size and put back each time it shows
+  /// (window.dart); null in tests.
+  WindowPlaceKeeper? _windowPlace;
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +73,7 @@ class _SettingsAppState extends State<SettingsApp> with WidgetsBindingObserver {
       WidgetsBinding.instance.addObserver(this);
       _lookTimer = Timer.periodic(DesktopLookWatcher.filesEvery, (_) => _reloadLook());
       _windowStyle = WindowStyleWatcher();
+      _windowPlace = WindowPlaceKeeper(saved: appWindow.readPlace(), save: appWindow.savePlace)..start();
     }
   }
 
@@ -76,12 +81,14 @@ class _SettingsAppState extends State<SettingsApp> with WidgetsBindingObserver {
   void dispose() {
     _lookTimer?.cancel();
     _windowStyle?.dispose();
+    _windowPlace?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _windowPlace?.lifecycle(state);
     if (state == AppLifecycleState.resumed) _reloadLook();
   }
 
