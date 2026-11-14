@@ -66,6 +66,7 @@ impl Line {
 }
 
 fn main() -> cosmic::iced::Result {
+    crate::look::keep_fonts();
     cosmic::applet::run::<Narrator>(())
 }
 
@@ -574,6 +575,7 @@ impl cosmic::Application for Narrator {
     }
 
     fn view(&self) -> Element<'_, Message> {
+        crate::look::keep_fonts();
         let horizontal = matches!(
             self.core.applet.anchor,
             PanelAnchor::Top | PanelAnchor::Bottom
@@ -599,6 +601,7 @@ impl cosmic::Application for Narrator {
     }
 
     fn view_window(&self, id: window::Id) -> Element<'_, Message> {
+        crate::look::keep_fonts();
         let content = match self.shot.card(id, Message::Shot) {
             Some(card) => column![card, self.menu()].width(Length::Fixed(POPUP_WIDTH)).into(),
             None => self.menu(),
