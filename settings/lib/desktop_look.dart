@@ -9,13 +9,15 @@ import 'dart:io';
 
 /// `{accent, background, foreground, muted, selection, red, yellow, orange, green}` as `#rrggbb`
 /// (only those the desktop knows), the windows' corner [rounding] (null: unknown) and whether the
-/// background is dark (null: no background).
+/// background is dark (null: no background). [fonts]: the desktop's interface and monospace
+/// families `{ui, mono}`, each left out when unknown.
 class DesktopLook {
-  const DesktopLook({this.desktop = 'other', this.colors = const {}, this.rounding});
+  const DesktopLook({this.desktop = 'other', this.colors = const {}, this.rounding, this.fonts = const {}});
 
   final String desktop;
   final Map<String, String> colors;
   final int? rounding;
+  final Map<String, String> fonts;
 
   bool? get isDark {
     final bg = colors['background'];
@@ -28,13 +30,16 @@ class DesktopLook {
       other.desktop == desktop &&
       other.rounding == rounding &&
       other.colors.length == colors.length &&
-      colors.entries.every((e) => other.colors[e.key] == e.value);
+      colors.entries.every((e) => other.colors[e.key] == e.value) &&
+      other.fonts.length == fonts.length &&
+      fonts.entries.every((e) => other.fonts[e.key] == e.value);
 
   @override
-  int get hashCode => Object.hash(desktop, rounding, Object.hashAllUnordered(colors.entries.map((e) => '${e.key}=${e.value}')));
+  int get hashCode => Object.hash(desktop, rounding, Object.hashAllUnordered(colors.entries.map((e) => '${e.key}=${e.value}')),
+      Object.hashAllUnordered(fonts.entries.map((e) => '${e.key}=${e.value}')));
 
   @override
-  String toString() => 'DesktopLook($desktop, $colors, rounding: $rounding)';
+  String toString() => 'DesktopLook($desktop, $colors, rounding: $rounding, fonts: $fonts)';
 }
 
 /// COSMIC / KDE / Hyprland / other from XDG_CURRENT_DESKTOP. Without it (a process started
@@ -78,8 +83,9 @@ bool hyprlandSocket(Map<String, String> env) {
 
 /// The look of the desktop in [env] (default: this process' environment). [root] is the file
 /// system's root (tests point it elsewhere); [hyprRounding] is Hyprland's decoration:rounding
-/// (from `hyprctl`, see [DesktopLookWatcher]).
-DesktopLook readDesktopLook({Map<String, String>? env, String root = '/', int? hyprRounding}) {
+/// (from `hyprctl`, see [DesktopLookWatcher]); [gtkFonts] GTK's interface and monospace fonts
+/// (from `gsettings`, see [gsettingsFonts]) for Hyprland and other desktops.
+DesktopLook readDesktopLook({Map<String, String>? env, String root = '/', int? hyprRounding, (String?, String?)? gtkFonts}) {
   final e = env ?? Platform.environment;
   final desktop = desktopName(e);
   final home = e['HOME'] ?? '';
@@ -90,29 +96,94 @@ DesktopLook readDesktopLook({Map<String, String>? env, String root = '/', int? h
 
   final config = xdg('XDG_CONFIG_HOME', '.config');
   final state = xdg('XDG_STATE_HOME', '.local/state');
+  final fonts = desktopFonts(desktop, config, root, gtkFonts);
   return switch (desktop) {
-    'cosmic' => DesktopLook(desktop: desktop, colors: _cosmicColors(config, root), rounding: _cosmicRounding(config, root)),
-    'kde' => DesktopLook(desktop: desktop, colors: _kdeColors(config), rounding: 8),
-    'hyprland' => DesktopLook(desktop: desktop, colors: shellColors(_read('$state/maprisma-shell/scheme.json', 256 * 1024)), rounding: hyprRounding),
-    _ => const DesktopLook(),
+    'cosmic' => DesktopLook(desktop: desktop, colors: _cosmicColors(config, root), rounding: _cosmicRounding(config, root), fonts: fonts),
+    'kde' => DesktopLook(desktop: desktop, colors: _kdeColors(config), rounding: 8, fonts: fonts),
+    'hyprland' => DesktopLook(
+      desktop: desktop,
+      colors: shellColors(_read('$state/maprisma-shell/scheme.json', 256 * 1024)),
+      rounding: hyprRounding,
+      fonts: fonts,
+    ),
+    _ => DesktopLook(fonts: fonts),
   };
 }
 
-/// Re-reads the look while the app runs: the files at most every 5 s, `hyprctl` at most every
-/// 30 s (Maprisma Theme can change the scheme at any time).
+// --- fonts (the same in every Maprisma app; Maprisma Theme's Font & effects sets them) ------
+
+/// The desktop's interface and monospace font families, `{ui, mono}`, each left out when it
+/// can't be read: COSMIC's CosmicTk interface_font / monospace_font, KDE's kdeglobals font /
+/// fixed, elsewhere (Hyprland, GNOME) GTK's [gtkFonts] (gsettings font-name /
+/// monospace-font-name, asked at most every 30 s by [DesktopLookWatcher]).
+Map<String, String> desktopFonts(String desktop, String config, String root, (String?, String?)? gtkFonts) {
+  String? clean(String? v) {
+    final t = v?.trim();
+    return t == null || t.isEmpty || t.length > 100 ? null : t;
+  }
+
+  final (String? ui, String? mono) = switch (desktop) {
+    'cosmic' => (
+      _ronFamily(_cosmicConfig(config, root, 'com.system76.CosmicTk', 'interface_font')),
+      _ronFamily(_cosmicConfig(config, root, 'com.system76.CosmicTk', 'monospace_font')),
+    ),
+    'kde' => () {
+      final text = _read('$config/kdeglobals', 1024 * 1024) ?? '';
+      return (_kdeIni(text, 'General', 'font')?.split(',').first, _kdeIni(text, 'General', 'fixed')?.split(',').first);
+    }(),
+    _ => gtkFonts ?? (null, null),
+  };
+  return {'ui': ?clean(ui), 'mono': ?clean(mono)};
+}
+
+String? _ronFamily(String? text) {
+  final v = text == null ? null : ronField(text, 'family');
+  return v?.replaceAll('"', '');
+}
+
+/// A Pango font ("Noto Sans  10", "Hack, 10") without its size.
+String pangoFamily(String font) => font.trim().replaceFirst(RegExp(r',?\s+\d+(\.\d+)?$'), '').trim();
+
+/// `gsettings get org.gnome.desktop.interface font-name / monospace-font-name` as families
+/// (null: unknown), run with [env] (default: this process' environment).
+Future<(String?, String?)> gsettingsFonts({Map<String, String>? env}) async {
+  Future<String?> get(String key) async {
+    try {
+      final r = await Process.run('gsettings', ['get', 'org.gnome.desktop.interface', key], environment: env)
+          .timeout(const Duration(seconds: 3));
+      final out = r.exitCode == 0 ? '${r.stdout}'.trim() : '';
+      return out.length > 2 && out.startsWith("'") && out.endsWith("'") ? pangoFamily(out.substring(1, out.length - 1)) : null;
+    } on Object {
+      return null;
+    }
+  }
+
+  return (await get('font-name'), await get('monospace-font-name'));
+}
+
+/// Re-reads the look while the app runs: the files at most every 5 s, `hyprctl` and (on
+/// Hyprland and other desktops) `gsettings`' fonts at most every 30 s (Maprisma Theme can change
+/// the scheme and fonts at any time).
 class DesktopLookWatcher {
-  DesktopLookWatcher({Map<String, String>? env, this.root = '/', Future<int?> Function()? hyprRounding})
-      : env = env ?? Platform.environment,
-        _hyprctl = hyprRounding ?? hyprctlRounding;
+  DesktopLookWatcher({
+    Map<String, String>? env,
+    this.root = '/',
+    Future<int?> Function()? hyprRounding,
+    Future<(String?, String?)> Function()? gtkFonts,
+  })  : env = env ?? Platform.environment,
+        _hyprctl = hyprRounding ?? hyprctlRounding,
+        _gsettings = gtkFonts ?? (() => gsettingsFonts(env: env));
 
   final Map<String, String> env;
   final String root;
   final Future<int?> Function() _hyprctl;
+  final Future<(String?, String?)> Function() _gsettings;
   static const filesEvery = Duration(seconds: 5), hyprctlEvery = Duration(seconds: 30);
 
   DesktopLook? _look;
-  DateTime? _filesAt, _hyprAt;
+  DateTime? _filesAt, _hyprAt, _fontsAt;
   int? _rounding;
+  (String?, String?)? _gtkFonts;
 
   Future<DesktopLook> read({DateTime? now}) async {
     final at = now ?? DateTime.now();
@@ -121,9 +192,15 @@ class DesktopLookWatcher {
       _rounding = await _hyprctl();
       _filesAt = null; // the new rounding goes in at once
     }
+    final desktop = desktopName(env);
+    if (desktop != 'cosmic' && desktop != 'kde' && (_fontsAt == null || at.difference(_fontsAt!) >= hyprctlEvery)) {
+      _fontsAt = at;
+      _gtkFonts = await _gsettings();
+      _filesAt = null;
+    }
     if (_look == null || _filesAt == null || at.difference(_filesAt!) >= filesEvery) {
       _filesAt = at;
-      _look = readDesktopLook(env: env, root: root, hyprRounding: _rounding);
+      _look = readDesktopLook(env: env, root: root, hyprRounding: _rounding, gtkFonts: _gtkFonts);
     }
     return _look!;
   }

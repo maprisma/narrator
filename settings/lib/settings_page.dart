@@ -10,6 +10,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import 'app_look.dart';
+import 'app_theme.dart' show monoFont;
 import 'bridge.dart';
 import 'look.dart';
 import 'widgets.dart';
@@ -541,6 +542,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: TextField(
                 controller: _qwenPaths[key],
                 autocorrect: false,
+                style: theme.textTheme.bodyLarge?.copyWith(fontFamily: monoFont(context)),
                 decoration: InputDecoration(
                   labelText: tr(title),
                   helperText: subtitle,

@@ -64,6 +64,26 @@ StateColors stateColors(BuildContext context) =>
       update: const Color(0xffe66100),
     );
 
+/// The desktop's monospace family (desktop_look.dart fonts.mono) for code, logs and commands; the
+/// interface font is the theme's own fontFamily.
+class AppFonts extends ThemeExtension<AppFonts> {
+  const AppFonts({this.mono});
+  final String? mono;
+  @override
+  AppFonts copyWith({String? mono}) => AppFonts(mono: mono ?? this.mono);
+  @override
+  AppFonts lerp(AppFonts? other, double t) => other ?? this;
+}
+
+/// The monospace family to use: the desktop's, else the system's 'monospace'.
+String monoFont(BuildContext context) => Theme.of(context).extension<AppFonts>()?.mono ?? 'monospace';
+
+/// [fonts] (desktop_look.dart `fonts`) as a family: a non-empty string, else null.
+String? fontFamily(Map? fonts, String key) {
+  final v = fonts?[key];
+  return v is String && v.trim().isNotEmpty ? v.trim() : null;
+}
+
 /// Light or dark from the desktop's background; the platform's without one.
 ThemeMode appThemeMode(Map colors) {
   final background = hexColor(colors, 'background');
@@ -72,8 +92,9 @@ ThemeMode appThemeMode(Map colors) {
 }
 
 /// The desktop's palette as a Material theme; an empty palette (other desktops) follows the
-/// platform's light or dark with Material tones of the accent.
-ThemeData appTheme(Brightness platform, Map colors, double radius) {
+/// platform's light or dark with Material tones of the accent. [fonts] (desktop_look.dart
+/// `fonts`): the desktop's interface font for all text, its monospace font for [monoFont].
+ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts}) {
   final background = hexColor(colors, 'background');
   final accent = hexColor(colors, 'accent');
   final brightness =
@@ -115,11 +136,13 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
   return ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
+    fontFamily: fontFamily(fonts, 'ui'),
     scaffoldBackgroundColor: scheme.surface,
     visualDensity: VisualDensity.compact,
     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     extensions: [
       sizes,
+      AppFonts(mono: fontFamily(fonts, 'mono')),
       StateColors(
         ok: hexColor(colors, 'green') ?? const Color(0xff26a269),
         warn: hexColor(colors, 'yellow') ?? const Color(0xffc88800),

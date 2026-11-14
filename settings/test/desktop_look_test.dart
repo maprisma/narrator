@@ -170,6 +170,49 @@ AccentColor=231,138,78
     expect(asked, 2);
   });
 
+  test("fonts: COSMIC's CosmicTk (v2 first), KDE's kdeglobals font / fixed", () {
+    env['XDG_CURRENT_DESKTOP'] = 'COSMIC';
+    expect(readDesktopLook(env: env, root: tmp.path).fonts, isEmpty); // no CosmicTk fonts in this world
+    const tk = '.config/cosmic/com.system76.CosmicTk';
+    file('$tk/v1/interface_font').writeAsStringSync('(\n    family: "Old Sans",\n    weight: Normal,\n)');
+    file('$tk/v2/interface_font').writeAsStringSync('(\n    family: "Open Sans",\n    weight: Normal,\n)');
+    file('$tk/v1/monospace_font').writeAsStringSync('(\n    family: "Hack",\n    weight: Normal,\n)');
+    expect(readDesktopLook(env: env, root: tmp.path).fonts, {'ui': 'Open Sans', 'mono': 'Hack'});
+    env['XDG_CURRENT_DESKTOP'] = 'KDE';
+    file('.config/kdeglobals').writeAsStringSync('[General]\nfixed=Hack,10,-1,5,400,0,0,0,0,0\nfont=Noto Sans,10,-1,5,400,0,0,0,0,0\n');
+    expect(readDesktopLook(env: env, root: tmp.path).fonts, {'ui': 'Noto Sans', 'mono': 'Hack'});
+    // Hyprland and others: GTK's, as the watcher passes them
+    env['XDG_CURRENT_DESKTOP'] = 'Hyprland';
+    expect(readDesktopLook(env: env, root: tmp.path, gtkFonts: ('Noto Sans', null)).fonts, {'ui': 'Noto Sans'});
+    expect(readDesktopLook(env: env, root: tmp.path).fonts, isEmpty);
+    expect(pangoFamily('Noto Sans  10'), 'Noto Sans');
+    expect(pangoFamily('Hack, 10.5'), 'Hack');
+    expect(pangoFamily('JetBrains Mono Nerd Font 12'), 'JetBrains Mono Nerd Font');
+    expect(pangoFamily('Hack'), 'Hack');
+  });
+
+  test("fonts on Hyprland: GTK's gsettings without the size, asked at most every 30 s", () async {
+    env['XDG_CURRENT_DESKTOP'] = 'Hyprland';
+    // A fake gsettings first on PATH (never the real one, never the user's settings).
+    final bin = Directory('${tmp.path}/bin')..createSync();
+    final log = '${tmp.path}/gs.log';
+    File('${bin.path}/gsettings').writeAsStringSync('#!/bin/sh\necho "\$@" >> "$log"\ncase "\$3" in font-name) echo "\'Noto Sans  10\'";; monospace-font-name) echo "\'Hack, 10.5\'";; esac\n');
+    Process.runSync('chmod', ['+x', '${bin.path}/gsettings']);
+    env['PATH'] = '${bin.path}:/usr/bin:/bin';
+    expect(await gsettingsFonts(env: env), ('Noto Sans', 'Hack'));
+    expect(File(log).readAsLinesSync(), hasLength(2));
+    final watcher = DesktopLookWatcher(env: env, root: tmp.path, hyprRounding: () async => null);
+    final t0 = DateTime(2026);
+    expect((await watcher.read(now: t0)).fonts, {'ui': 'Noto Sans', 'mono': 'Hack'});
+    await watcher.read(now: t0.add(const Duration(seconds: 10)));
+    expect(File(log).readAsLinesSync(), hasLength(4)); // not asked again within 30 s
+    await watcher.read(now: t0.add(const Duration(seconds: 30)));
+    expect(File(log).readAsLinesSync(), hasLength(6));
+    // without gsettings: no fonts
+    env['PATH'] = '${tmp.path}/nothing';
+    expect(await gsettingsFonts(env: env), (null, null));
+  });
+
   testWidgets("the window takes the desktop's palette and corners", (tester) async {
     desktopLook.value = const DesktopLook(
       desktop: 'hyprland',
@@ -197,5 +240,14 @@ AccentColor=231,138,78
     expect(light.colorScheme.surface, const Color(0xfffafafa));
     expect(light.brightness, Brightness.light);
     expect(light.extension<Corners>()!.radius, 0);
+  });
+
+  testWidgets("the window takes the desktop's fonts", (tester) async {
+    desktopLook.value = const DesktopLook(desktop: 'kde', fonts: {'ui': 'Noto Sans', 'mono': 'Hack'});
+    addTearDown(() => desktopLook.value = const DesktopLook());
+    await tester.pumpWidget(SettingsApp(bridge: _Bridge()));
+    final context = tester.element(find.byType(Scaffold).first);
+    expect(Theme.of(context).textTheme.bodyMedium!.fontFamily, 'Noto Sans');
+    expect(monoFont(context), 'Hack');
   });
 }
