@@ -22,6 +22,8 @@ final appWindow = AppWindow(
   channel: const MethodChannel('maprisma_narrator/window'),
   file: () => File('${languageSettingsFile().parent.path}/window.json'),
   defaultSize: const Size(640, 820),
+  // Maprisma Tiling on KDE sizes the window without GTK knowing; Hyprland: only floating counts.
+  notUsers: () async => tiledByMaprismaTiling('com.maprisma.Narrator') || await hyprlandSizeNotUsers(),
 );
 
 Future<void> main() async {
