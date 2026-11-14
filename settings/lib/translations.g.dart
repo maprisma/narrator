@@ -207,7 +207,10 @@ const translations = <String, Map<String, String>>{
     "Like the desktop ({0} px)": "Wie der Desktop ({0} px)",
     "Slightly rounded ({0} px)": "Leicht abgerundet ({0} px)",
     "Rounded ({0} px)": "Abgerundet ({0} px)",
-    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installieren Sie diese Pakete mit Ihrer Paketverwaltung (Arch-Namen) und starten Sie die Einrichtung erneut: {0}"
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installieren Sie diese Pakete mit Ihrer Paketverwaltung (Arch-Namen) und starten Sie die Einrichtung erneut: {0}",
+    "Settings": "Einstellungen",
+    "Back": "Zurück",
+    "Could not save the setting.": "Die Einstellung konnte nicht gespeichert werden."
   },
   "fr": {
     "Language": "Langue",
@@ -415,7 +418,10 @@ const translations = <String, Map<String, String>>{
     "Like the desktop ({0} px)": "Comme le bureau ({0} px)",
     "Slightly rounded ({0} px)": "Légèrement arrondis ({0} px)",
     "Rounded ({0} px)": "Arrondis ({0} px)",
-    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installez ces paquets avec votre gestionnaire de paquets (noms Arch), puis relancez la configuration : {0}"
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installez ces paquets avec votre gestionnaire de paquets (noms Arch), puis relancez la configuration : {0}",
+    "Settings": "Paramètres",
+    "Back": "Retour",
+    "Could not save the setting.": "Impossible d’enregistrer le paramètre."
   },
   "es": {
     "Language": "Idioma",
@@ -623,7 +629,10 @@ const translations = <String, Map<String, String>>{
     "Like the desktop ({0} px)": "Como el escritorio ({0} px)",
     "Slightly rounded ({0} px)": "Ligeramente redondeadas ({0} px)",
     "Rounded ({0} px)": "Redondeadas ({0} px)",
-    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instala estos paquetes con tu gestor de paquetes (nombres de Arch) y vuelve a iniciar la configuración: {0}"
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instala estos paquetes con tu gestor de paquetes (nombres de Arch) y vuelve a iniciar la configuración: {0}",
+    "Settings": "Ajustes",
+    "Back": "Atrás",
+    "Could not save the setting.": "No se pudo guardar el ajuste."
   },
   "it": {
     "Language": "Lingua",
@@ -831,7 +840,10 @@ const translations = <String, Map<String, String>>{
     "Like the desktop ({0} px)": "Come il desktop ({0} px)",
     "Slightly rounded ({0} px)": "Leggermente arrotondati ({0} px)",
     "Rounded ({0} px)": "Arrotondati ({0} px)",
-    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installa questi pacchetti con il tuo gestore di pacchetti (nomi Arch), poi ripeti la configurazione: {0}"
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installa questi pacchetti con il tuo gestore di pacchetti (nomi Arch), poi ripeti la configurazione: {0}",
+    "Settings": "Impostazioni",
+    "Back": "Indietro",
+    "Could not save the setting.": "Impossibile salvare l’impostazione."
   },
   "pt": {
     "Language": "Idioma",
@@ -1039,7 +1051,10 @@ const translations = <String, Map<String, String>>{
     "Like the desktop ({0} px)": "Como o ambiente de trabalho ({0} px)",
     "Slightly rounded ({0} px)": "Levemente arredondados ({0} px)",
     "Rounded ({0} px)": "Arredondados ({0} px)",
-    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instale estes pacotes com o seu gestor de pacotes (nomes do Arch) e repita a configuração: {0}"
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instale estes pacotes com o seu gestor de pacotes (nomes do Arch) e repita a configuração: {0}",
+    "Settings": "Definições",
+    "Back": "Voltar",
+    "Could not save the setting.": "Não foi possível guardar a definição."
   },
   "nl": {
     "Language": "Taal",
@@ -1247,7 +1262,10 @@ const translations = <String, Map<String, String>>{
     "Like the desktop ({0} px)": "Zoals het bureaublad ({0} px)",
     "Slightly rounded ({0} px)": "Licht afgerond ({0} px)",
     "Rounded ({0} px)": "Afgerond ({0} px)",
-    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installeer deze pakketten met je pakketbeheerder (Arch-namen) en start de installatie opnieuw: {0}"
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installeer deze pakketten met je pakketbeheerder (Arch-namen) en start de installatie opnieuw: {0}",
+    "Settings": "Instellingen",
+    "Back": "Terug",
+    "Could not save the setting.": "De instelling kon niet worden opgeslagen."
   },
   "pl": {
     "Language": "Język",
@@ -1455,6 +1473,9 @@ const translations = <String, Map<String, String>>{
     "Like the desktop ({0} px)": "Jak pulpit ({0} px)",
     "Slightly rounded ({0} px)": "Lekko zaokrąglone ({0} px)",
     "Rounded ({0} px)": "Zaokrąglone ({0} px)",
-    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Zainstaluj te pakiety menedżerem pakietów (nazwy z Arch), a potem ponów konfigurację: {0}"
+    "Install these packages with your package manager (Arch names), then retry setup: {0}": "Zainstaluj te pakiety menedżerem pakietów (nazwy z Arch), a potem ponów konfigurację: {0}",
+    "Settings": "Ustawienia",
+    "Back": "Wstecz",
+    "Could not save the setting.": "Nie udało się zapisać ustawienia."
   }
 };

@@ -204,5 +204,8 @@
   "Like the desktop ({0} px)": "Como el escritorio ({0} px)",
   "Slightly rounded ({0} px)": "Ligeramente redondeadas ({0} px)",
   "Rounded ({0} px)": "Redondeadas ({0} px)",
-  "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instala estos paquetes con tu gestor de paquetes (nombres de Arch) y vuelve a iniciar la configuración: {0}"
+  "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instala estos paquetes con tu gestor de paquetes (nombres de Arch) y vuelve a iniciar la configuración: {0}",
+  "Settings": "Ajustes",
+  "Back": "Atrás",
+  "Could not save the setting.": "No se pudo guardar el ajuste."
 }

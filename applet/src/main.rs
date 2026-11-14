@@ -1,6 +1,6 @@
 #[path = "../../translations/i18n.rs"]
 mod i18n;
-use i18n::{message, tr};
+use i18n::{message, tr, trf};
 #[allow(dead_code)] // the shared copy of every Maprisma COSMIC app; not every part is used here
 mod corners;
 mod look;
@@ -33,7 +33,8 @@ use cosmic::widget::rectangle_tracker::{
     RectangleTracker, RectangleUpdate, rectangle_tracker_subscription,
 };
 use cosmic::widget::{
-    Id, autosize, button, column, container, divider, icon, mouse_area, row, slider, space, text,
+    Id, autosize, button, column, container, divider, icon, mouse_area, row, scrollable, slider, space,
+    text, toggler,
 };
 use cosmic::{Element, theme};
 use serde_json::{Value, json};
@@ -63,6 +64,12 @@ impl Line {
         }
         .into()
     }
+}
+
+/// Debug builds only: `MAPRISMA_SHOT_PAGE=settings` opens the popup on the settings page (for
+/// screenshots).
+fn shot_page_settings() -> bool {
+    cfg!(debug_assertions) && std::env::var("MAPRISMA_SHOT_PAGE").as_deref() == Ok("settings")
 }
 
 fn main() -> cosmic::iced::Result {
@@ -119,21 +126,28 @@ fn fill(line: Line, radius: f32) -> theme::Container<'static> {
 // ------------------------------------------------------------------------- applet
 
 /// What Esc in a surface of the applet does: the screenshot note goes first (shot.rs skips it),
-/// then the popup closes; elsewhere (the panel button) nothing.
+/// then an open Language / Corners list, then Back from the settings page, then the popup
+/// closes; elsewhere (the panel button) nothing.
 #[derive(Debug, PartialEq)]
 enum Escape {
     Note,
+    Menus,
+    Back,
     ClosePopup,
     Nothing,
 }
 
-fn escape(id: window::Id, popup: Option<window::Id>, note: bool) -> Escape {
+fn escape(id: window::Id, popup: Option<window::Id>, note: bool, menus: bool, settings: bool) -> Escape {
     if note {
         Escape::Note
-    } else if popup == Some(id) {
-        Escape::ClosePopup
-    } else {
+    } else if popup != Some(id) {
         Escape::Nothing
+    } else if menus {
+        Escape::Menus
+    } else if settings {
+        Escape::Back
+    } else {
+        Escape::ClosePopup
     }
 }
 
@@ -151,18 +165,27 @@ struct Narrator {
     shot: Shot,
     corners: String, // Settings › Corners (corners.rs)
     screenshot_key: bool,
+    /// The settings page (Language, F12, Corners) is shown instead of the menu.
+    settings_open: bool,
+    language_open: bool,
+    corners_open: bool,
+    setting_error: bool,
 }
 
 /// Settings › F12 saves a screenshot (on unless `"screenshot_key": false`) and › Corners
 /// (`"corners"`), set in the settings window and kept in the same settings.json as its language.
-fn look_settings() -> (bool, String) {
-    let config = std::env::var_os("XDG_CONFIG_HOME")
+fn settings_file() -> std::path::PathBuf {
+    std::env::var_os("XDG_CONFIG_HOME")
         .filter(|v| !v.is_empty())
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| {
             std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".config")
-        });
-    let saved = std::fs::read_to_string(config.join("maprisma-narrator/settings.json"))
+        })
+        .join("maprisma-narrator/settings.json")
+}
+
+fn look_settings() -> (bool, String) {
+    let saved = std::fs::read_to_string(settings_file())
         .ok()
         .and_then(|s| serde_json::from_str::<Value>(&s).ok())
         .unwrap_or(Value::Null);
@@ -170,6 +193,50 @@ fn look_settings() -> (bool, String) {
         saved.get("screenshot_key").and_then(Value::as_bool) != Some(false),
         corners::normalize(saved.get("corners").and_then(Value::as_str).unwrap_or("")).to_string(),
     )
+}
+
+/// Saves one setting into settings.json, keeping every other key (as the settings window does).
+fn save_setting(key: &str, value: Value) -> std::io::Result<()> {
+    let file = settings_file();
+    let mut settings = std::fs::read_to_string(&file)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .filter(Value::is_object)
+        .unwrap_or_else(|| json!({}));
+    settings[key] = value;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let temporary = file.with_extension("json.tmp");
+    std::fs::write(&temporary, serde_json::to_vec(&settings)?)?;
+    std::fs::rename(&temporary, &file)
+}
+
+const LANGUAGES: &[(&str, &str)] = &[
+    ("en", "English"),
+    ("de", "Deutsch"),
+    ("fr", "Français"),
+    ("es", "Español"),
+    ("it", "Italiano"),
+    ("pt", "Português"),
+    ("nl", "Nederlands"),
+    ("pl", "Polski"),
+];
+
+/// Settings › Language: the system's and the eight languages, "✓ " before the chosen one.
+fn language_options() -> Vec<(&'static str, String)> {
+    let saved = std::fs::read_to_string(settings_file())
+        .ok()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .and_then(|v| v.get("interface_language").and_then(Value::as_str).map(str::to_owned))
+        .filter(|c| LANGUAGES.iter().any(|(code, _)| code == c))
+        .unwrap_or_else(|| "auto".into());
+    let system = i18n::system_language(|k| std::env::var(k).ok());
+    let name = LANGUAGES.iter().find(|(c, _)| *c == system).map_or("English", |(_, n)| n);
+    std::iter::once(("auto", trf("System ({0})", &[name])))
+        .chain(LANGUAGES.iter().map(|(c, n)| (*c, n.to_string())))
+        .map(|(c, label)| (c, if saved == c { format!("✓ {label}") } else { label }))
+        .collect()
 }
 
 #[derive(Debug, Clone)]
@@ -186,6 +253,12 @@ enum Message {
     SpeedDone,
     Step,
     OpenSettings,
+    ToggleSettings,
+    ToggleLanguage,
+    ToggleCorners,
+    Language(&'static str),
+    Corners(&'static str),
+    SetShotKey(bool),
     Shot(ShotMsg),
 }
 
@@ -249,7 +322,14 @@ impl Narrator {
         }
         let header = row![
             icon::from_name(ICON).size(24).symbolic(true).icon(),
-            text::body(status).width(Length::Fill)
+            text::body(status).width(Length::Fill),
+            // Settings at the header's right end, as in Maprisma Launcher.
+            cosmic::widget::tooltip(
+                button::icon(icon::from_name("emblem-system-symbolic").symbolic(true))
+                    .on_press(Message::ToggleSettings),
+                text::body(tr("Settings")),
+                cosmic::widget::tooltip::Position::Bottom,
+            ),
         ]
         .spacing(12)
         .align_y(Alignment::Center);
@@ -358,6 +438,90 @@ impl Narrator {
             .into()
     }
 
+    /// Settings (as Maprisma Launcher's page): ← Back and the title, then one row per setting,
+    /// words at the left and the control at the right; a list opens under its row.
+    fn settings_page(&self) -> Element<'_, Message> {
+        let header = row![
+            button::text(tr("Back"))
+                .leading_icon(icon::from_name("go-previous-symbolic").size(16))
+                .on_press(Message::ToggleSettings),
+            space::horizontal().width(Length::Fill),
+            text::caption(tr("Settings").to_uppercase()).class(theme::Text::Custom(dim_text)),
+        ]
+        .align_y(Alignment::Center);
+        let choice = |label: String, open: bool, message: Message| -> Element<'static, Message> {
+            button::text(label)
+                .trailing_icon(
+                    icon::from_name(if open { "pan-up-symbolic" } else { "pan-down-symbolic" })
+                        .size(16),
+                )
+                .on_press(message)
+                .into()
+        };
+        let setting = |label: &str, control: Element<'static, Message>| {
+            padded_control(
+                row![
+                    text::body(label.to_owned()),
+                    space::horizontal().width(Length::Fill),
+                    control
+                ]
+                .spacing(12)
+                .align_y(Alignment::Center),
+            )
+        };
+        let options = language_options();
+        let current = options
+            .iter()
+            .find_map(|(_, l)| l.strip_prefix("✓ ").map(str::to_owned))
+            .unwrap_or_default();
+        let mut page = column![padded_control(header), divider::horizontal::default()];
+        page = page.push(setting(
+            tr("Language"),
+            choice(current, self.language_open, Message::ToggleLanguage),
+        ));
+        if self.language_open {
+            for (code, label) in options {
+                page = page.push(menu_button(text::body(label)).on_press(Message::Language(code)));
+            }
+        }
+        page = page.push(setting(
+            tr("F12 saves a screenshot"),
+            toggler(self.screenshot_key).on_toggle(Message::SetShotKey).into(),
+        ));
+        let desktop = corners::desktop_radius().round().to_string();
+        let corner_choices = [
+            ("desktop", trf("Like the desktop ({0} px)", &[&desktop])),
+            ("slight", trf("Slightly rounded ({0} px)", &["6"])),
+            ("rounded", trf("Rounded ({0} px)", &["12"])),
+            ("square", tr("Square").to_owned()),
+        ];
+        let current = corner_choices
+            .iter()
+            .find(|(c, _)| *c == self.corners)
+            .map(|(_, l)| l.clone())
+            .unwrap_or_default();
+        page = page.push(setting(
+            tr("Corners"),
+            choice(current, self.corners_open, Message::ToggleCorners),
+        ));
+        if self.corners_open {
+            for (choice, label) in corner_choices {
+                let label = if self.corners == choice { format!("✓ {label}") } else { label };
+                page = page.push(menu_button(text::body(label)).on_press(Message::Corners(choice)));
+            }
+        }
+        if self.setting_error {
+            page = page.push(padded_control(text::body(tr("Could not save the setting."))));
+        }
+        scrollable(page.width(Length::Fixed(POPUP_WIDTH)).padding([0, 0, 8, 0]))
+            .height(Length::Shrink)
+            .into()
+    }
+
+    fn save(&mut self, key: &str, value: Value) {
+        self.setting_error = save_setting(key, value).is_err();
+    }
+
     fn read_look(&mut self) -> Task<Message> {
         let (screenshot_key, corners) = look_settings();
         self.screenshot_key = screenshot_key;
@@ -370,6 +534,7 @@ impl Narrator {
     }
 
     fn close_popup(&mut self) -> Task<Message> {
+        self.reset_page();
         match self.popup.take() {
             Some(popup) => {
                 self.shot.closed(popup);
@@ -377,6 +542,13 @@ impl Narrator {
             }
             None => Task::none(),
         }
+    }
+
+    /// The popup opens on the menu again.
+    fn reset_page(&mut self) {
+        self.settings_open = shot_page_settings();
+        self.language_open = false;
+        self.corners_open = false;
     }
 
     fn send(&mut self, payload: Value) -> Task<Message> {
@@ -407,6 +579,7 @@ impl cosmic::Application for Narrator {
         let mut app = Self {
             core,
             shot: Shot::new(SHOT_FOLDER),
+            settings_open: shot_page_settings(),
             ..Default::default()
         };
         let look = app.read_look();
@@ -453,8 +626,18 @@ impl cosmic::Application for Narrator {
                 return look;
             }
             Message::Shot(ShotMsg::Escape(id)) => {
-                return match escape(id, self.popup, self.shot.showing(id)) {
+                let menus = self.language_open || self.corners_open;
+                return match escape(id, self.popup, self.shot.showing(id), menus, self.settings_open) {
                     Escape::Note => self.shot.update(ShotMsg::Escape(id), self.screenshot_key, true, Message::Shot),
+                    Escape::Menus => {
+                        self.language_open = false;
+                        self.corners_open = false;
+                        Task::none()
+                    }
+                    Escape::Back => {
+                        self.settings_open = false;
+                        Task::none()
+                    }
                     Escape::ClosePopup => self.close_popup(),
                     Escape::Nothing => Task::none(),
                 };
@@ -522,6 +705,33 @@ impl cosmic::Application for Narrator {
                     .spawn();
                 return self.close_popup();
             }
+            Message::ToggleSettings => {
+                self.settings_open = !self.settings_open;
+                self.language_open = false;
+                self.corners_open = false;
+            }
+            Message::ToggleLanguage => {
+                self.language_open = !self.language_open;
+                self.corners_open = false;
+            }
+            Message::ToggleCorners => {
+                self.corners_open = !self.corners_open;
+                self.language_open = false;
+            }
+            Message::Language(code) => {
+                self.save("interface_language", json!(code));
+                self.language_open = false;
+            }
+            Message::Corners(choice) => {
+                self.save("corners", json!(choice));
+                self.corners_open = false;
+                self.corners = choice.to_string();
+                corners::set_current(&self.corners);
+            }
+            Message::SetShotKey(on) => {
+                self.save("screenshot_key", json!(on));
+                self.screenshot_key = on;
+            }
             Message::Rectangle(update) => match update {
                 RectangleUpdate::Rectangle(r) => self.rectangle = r.1,
                 RectangleUpdate::Init(tracker) => self.tracker = Some(tracker),
@@ -530,6 +740,7 @@ impl cosmic::Application for Narrator {
                 self.shot.closed(id);
                 if self.popup == Some(id) {
                     self.popup = None;
+                    self.reset_page();
                 }
             }
             Message::TogglePopup => {
@@ -602,9 +813,10 @@ impl cosmic::Application for Narrator {
 
     fn view_window(&self, id: window::Id) -> Element<'_, Message> {
         crate::look::keep_fonts();
+        let page = if self.settings_open { self.settings_page() } else { self.menu() };
         let content = match self.shot.card(id, Message::Shot) {
-            Some(card) => column![card, self.menu()].width(Length::Fixed(POPUP_WIDTH)).into(),
-            None => self.menu(),
+            Some(card) => column![card, page].width(Length::Fixed(POPUP_WIDTH)).into(),
+            None => page,
         };
         corners::apply(&self.corners, self.core.applet.popup_container(content))
     }
@@ -619,12 +831,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn escape_closes_the_note_first_then_the_popup() {
+    fn escape_closes_the_innermost_thing_first() {
         let popup = window::Id::unique();
         let other = window::Id::unique();
-        assert_eq!(escape(popup, Some(popup), true), Escape::Note);
-        assert_eq!(escape(popup, Some(popup), false), Escape::ClosePopup);
-        assert_eq!(escape(other, Some(popup), false), Escape::Nothing);
-        assert_eq!(escape(popup, None, false), Escape::Nothing);
+        assert_eq!(escape(popup, Some(popup), true, true, true), Escape::Note);
+        assert_eq!(escape(popup, Some(popup), false, true, true), Escape::Menus);
+        assert_eq!(escape(popup, Some(popup), false, false, true), Escape::Back);
+        assert_eq!(escape(popup, Some(popup), false, false, false), Escape::ClosePopup);
+        // Not from the open popup (e.g. the panel button): nothing.
+        assert_eq!(escape(other, Some(popup), false, true, true), Escape::Nothing);
+        assert_eq!(escape(popup, None, false, false, false), Escape::Nothing);
     }
 }
