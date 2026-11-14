@@ -287,7 +287,9 @@ final class WindowPlaceKeeper {
   bool _shown = true;
 
   /// Hyprland only, and never in widget tests (they must not ask or move the real windows).
-  bool get active => _env['FLUTTER_TEST'] != 'true' && _hyprlandDesktop(_env);
+  /// Not in off-screen screenshot runs either (MAPRISMA_OFFSHOT, offshot.sh): the window stays on
+  /// the hidden output and its place there is never saved over the user's.
+  bool get active => _env['FLUTTER_TEST'] != 'true' && (_env['MAPRISMA_OFFSHOT'] ?? '').isEmpty && _hyprlandDesktop(_env);
 
   Future<String?> _ask(List<String> args) async {
     try {
