@@ -68,6 +68,9 @@ pub struct Window {
     pub size: (i32, i32),
     pub focused: bool,
     pub shown: bool,
+    // The ext-foreign-toplevel identifier for `grim -T` where it differs from the address
+    // (Hyprland's stableId).
+    pub capture_id: Option<String>,
 }
 
 impl Window {
@@ -312,6 +315,7 @@ impl App {
                     size,
                     focused: info.state.contains(&ToplevelState::Activated),
                     shown: !minimized && on_screen,
+                    capture_id: None,
                 }
             })
             .collect();

@@ -121,6 +121,7 @@ pub fn window(v: &Value) -> Option<Window> {
         size: pair("size")?,
         focused: v["focused"] == true,
         shown: v["shown"] == true,
+        capture_id: None,
     })
 }
 impl Kde {

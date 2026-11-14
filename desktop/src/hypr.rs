@@ -108,6 +108,10 @@ pub fn windows(clients: &Value, active: &Value, monitors: &Value) -> Vec<Window>
                 size: pair(c, "size")?,
                 focused: !focused.is_empty() && address == focused,
                 shown: c["mapped"] != false && c["hidden"] != true && on_screen,
+                capture_id: c["stableId"]
+                    .as_str()
+                    .filter(|id| !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric()))
+                    .map(String::from),
             })
         })
         .collect()

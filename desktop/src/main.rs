@@ -288,9 +288,15 @@ impl Desktop {
         if !window.shown {
             return Err(format!("window {address} is not on screen"));
         }
-        if self.hypr.is_some() {
-            // grim cannot capture one Hyprland window by itself: the window's part of the
-            // screen (it is on screen; a floating window over it would show too).
+        // Hyprland (0.57+) captures one window through ext-image-copy-capture by its
+        // stableId, like COSMIC by its identifier: the highlight overlay is not in that
+        // picture, so it need not be hidden (hiding it on every scan made it blink).
+        // Without that, the window's part of the screen with the overlay hidden.
+        let hypr_picture = match (&self.hypr, &window.capture_id) {
+            (Some(_), Some(id)) => tool(&["grim", "-t", "ppm", "-T", id, "-"], TOOL_TIMEOUT).await,
+            _ => None,
+        };
+        if self.hypr.is_some() && hypr_picture.is_none() {
             let (x, y, w, h) = area;
             let inside = x >= window.at.0
                 && y >= window.at.1
@@ -307,7 +313,9 @@ impl Desktop {
         }
         let kde_picture;
         let cosmic_picture;
-        let (width, height, pixels) = if let Some(kde) = &self.kde {
+        let (width, height, pixels) = if let Some(picture) = &hypr_picture {
+            parse_ppm(picture).ok_or("grim gave no picture")?
+        } else if let Some(kde) = &self.kde {
             kde_picture = kde.capture(Some(address), area).await?;
             (kde_picture.0, kde_picture.1, kde_picture.2.as_slice())
         } else {
