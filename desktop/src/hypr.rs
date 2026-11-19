@@ -154,6 +154,28 @@ impl Hypr {
         self.refresh().await
     }
 
+    /// Sends one key straight to a window (Hyprland's send_shortcut): no focus is lent, so
+    /// the key cannot land in whatever window or popup has the focus meanwhile, and the
+    /// book gets it also while the user works in another window.
+    pub async fn send_key(&self, address: &str, key: &str) -> Result<(), String> {
+        let valid = address.starts_with("0x")
+            && address.len() > 2
+            && address[2..].chars().all(|c| c.is_ascii_hexdigit())
+            && !key.is_empty()
+            && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        if !valid {
+            return Err(format!("not a window address or key: {address} {key}"));
+        }
+        let answer = request(&format!(
+            "dispatch hl.dsp.send_shortcut({{ mods = \"\", key = \"{key}\", window = \"address:{address}\" }})"
+        ))
+        .await?;
+        if answer.trim() != "ok" {
+            return Err(answer.trim().to_string());
+        }
+        Ok(())
+    }
+
     /// Keeps the window list current: every event on the event socket refreshes it (a
     /// burst of events once), and every 10 s a refresh runs anyway as a safety net, also
     /// while the event socket is gone.

@@ -359,7 +359,7 @@ class PinnedWindowTests(unittest.TestCase):
             self.assertEqual(task.call_count, 1)
             self.assertEqual(task.call_args.args[1][-3:], ['send-key', target, 'Right'])
 
-    def test_missed_kindle_page_turn_retries_then_stops_at_end(self):
+    def test_missed_kindle_page_turn_retries_then_waits_for_a_manual_turn(self):
         import hashlib, time
         from reader import Reader
         digest = hashlib.sha256(b'same page').digest()
@@ -367,6 +367,7 @@ class PinnedWindowTests(unittest.TestCase):
             status='Turning to next page…', page_turned_at=time.monotonic() - 1.5,
             turn_retries=0, is_speaking=lambda: False, do_page_turn=Mock(),
             set_enabled=Mock(), update=Mock())
+        subject.page_turn_missed = lambda: Reader.page_turn_missed(subject)
         with patch('reader.Path.read_bytes', return_value=b'same page'):
             Reader.prepared(subject, 0, '', '')
             self.assertEqual(subject.turn_retries, 1)
@@ -376,9 +377,24 @@ class PinnedWindowTests(unittest.TestCase):
             self.assertEqual(subject.turn_retries, 2)
             self.assertEqual(subject.do_page_turn.call_count, 2)
             subject.page_turned_at = time.monotonic() - 3.5
-            Reader.prepared(subject, 0, '', '')
-            subject.set_enabled.assert_called_once_with(False)
-            subject.update.assert_called_once_with('End of document')
+            with patch('reader.desktop_notify') as notify:
+                Reader.prepared(subject, 0, '', '')
+            # Reading stays on: a page turned by hand is read, and pages turn by themselves again.
+            subject.set_enabled.assert_not_called()
+            subject.update.assert_called_once_with('Turn the page to go on')
+            notify.assert_called_once()
+            self.assertEqual(subject.turn_retries, 0)
+            self.assertIsNone(subject.page_turned_at)
+
+    def test_waiting_for_a_manual_turn_scans_even_with_follow_off(self):
+        from reader import Reader
+        subject = SimpleNamespace(enabled=True, paused=False, scanning=False, menu=Mock(),
+            settings={'follow': False}, last_text='Read page', got_window=Mock(), target='0x123',
+            status='Turn the page to go on')
+        subject.menu.isVisible.return_value = False
+        with patch('reader.Task') as task:
+            Reader.scan(subject)
+        self.assertIs(task.call_args.args[2], subject.got_window)
 
     def test_turning_scans_new_page_even_with_follow_off(self):
         from reader import Reader

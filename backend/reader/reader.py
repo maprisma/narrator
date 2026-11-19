@@ -68,6 +68,10 @@ TRANSLATOR_ENDPOINTS = {'llama.cpp': 'http://127.0.0.1:8080/v1', 'LM Studio': 'h
                         'Ollama': 'http://127.0.0.1:11434/v1'}
 
 
+# Status after a page key that did not turn the page: reading goes on with a page turned by hand.
+TURN_BY_HAND = 'Turn the page to go on'
+
+
 def speech_language(settings):
     """The voice speaks the translation target when translation is on, else the text language."""
     return settings.get('translate_to') or settings['language']
@@ -931,7 +935,7 @@ class Reader(QObject):
     def scan(self):
         if getattr(self, 'testing_voice', False) or not self.enabled or self.paused or self.scanning or self.menu.isVisible():
             return
-        if not self.settings['follow'] and self.last_text and self.status not in ('Waiting for the reading window', 'Turning to next page…'):
+        if not self.settings['follow'] and self.last_text and self.status not in ('Waiting for the reading window', 'Turning to next page…', TURN_BY_HAND):
             if self.target:
                 # No new pages, but closing the book still ends reading.
                 self.scanning = True
@@ -1139,10 +1143,7 @@ class Reader(QObject):
                         self.do_page_turn()
                         return
                     if time.monotonic() - page_turned >= 3:
-                        self.page_turned_at = None
-                        self.turn_retries = 0
-                        self.set_enabled(False)
-                        self.update('End of document')
+                        self.page_turn_missed()
                         return
             if self.status == 'Waiting for the reading window' and not self.is_speaking():
                 self.on_page_finished()
@@ -1487,6 +1488,17 @@ class Reader(QObject):
             QTimer.singleShot(100, lambda: self.do_page_turn() if self.epoch == epoch else None)
         else:
             self.update('On — waiting for a new page')
+
+    def page_turn_missed(self):
+        """The page key did not turn the page: a book's last page, or the key went astray.
+        Reading stays on and goes on with the page the user turns to, and turns pages by
+        itself again after it (stopping here made a manual turn read nothing)."""
+        self.page_turned_at = None
+        self.turn_retries = 0
+        print('Reader page turn missed: waiting for a page turned by hand', file=sys.stderr, flush=True)
+        self.update(TURN_BY_HAND)
+        desktop_notify('Maprisma Narrator', 'The page did not turn. Turn it yourself and reading goes on.',
+                       level='warning', timeout=4000)
 
     def do_page_turn(self):
         if not self.enabled or self.paused or not self.target:

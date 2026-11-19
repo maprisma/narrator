@@ -469,6 +469,17 @@ impl Desktop {
         if !self.shown(&address) {
             return false;
         }
+        // Hyprland hands a key to one window directly. Lending the focus and typing with
+        // wtype left Kindle's page standing (a Chrome app window), and reading stopped.
+        if let Some(hypr) = &self.hypr {
+            if !reading().await {
+                return false;
+            }
+            match hypr.send_key(&address, &key).await {
+                Ok(()) => return true,
+                Err(e) => eprintln!("[Maprisma Narrator] Hyprland key: {e}; trying wtype"),
+            }
+        }
         let previous = self.focused();
         let lent = previous.as_deref() != Some(address.as_str());
         let mut ok = true;
