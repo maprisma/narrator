@@ -208,5 +208,9 @@
   "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instala estos paquetes con tu gestor de paquetes (nombres de Arch) y vuelve a iniciar la configuración: {0}",
   "Settings": "Ajustes",
   "Back": "Atrás",
-  "Could not save the setting.": "No se pudo guardar el ajuste."
+  "Could not save the setting.": "No se pudo guardar el ajuste.",
+  "Solid": "Opacas",
+  "Transparent": "Transparentes",
+  "Glassy (blurred)": "Cristal (desenfocado)",
+  "Follow the desktop": "Como el escritorio"
 }

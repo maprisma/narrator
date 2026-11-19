@@ -208,5 +208,9 @@
   "Install these packages with your package manager (Arch names), then retry setup: {0}": "Zainstaluj te pakiety menedżerem pakietów (nazwy z Arch), a potem ponów konfigurację: {0}",
   "Settings": "Ustawienia",
   "Back": "Wstecz",
-  "Could not save the setting.": "Nie udało się zapisać ustawienia."
+  "Could not save the setting.": "Nie udało się zapisać ustawienia.",
+  "Solid": "Nieprzezroczyste",
+  "Transparent": "Przezroczyste",
+  "Glassy (blurred)": "Szkło (rozmyte)",
+  "Follow the desktop": "Jak pulpit"
 }

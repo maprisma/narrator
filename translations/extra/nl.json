@@ -208,5 +208,9 @@
   "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installeer deze pakketten met je pakketbeheerder (Arch-namen) en start de installatie opnieuw: {0}",
   "Settings": "Instellingen",
   "Back": "Terug",
-  "Could not save the setting.": "De instelling kon niet worden opgeslagen."
+  "Could not save the setting.": "De instelling kon niet worden opgeslagen.",
+  "Solid": "Dekkend",
+  "Transparent": "Doorzichtig",
+  "Glassy (blurred)": "Glas (vervaagd)",
+  "Follow the desktop": "Zoals het bureaublad"
 }

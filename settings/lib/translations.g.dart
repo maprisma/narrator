@@ -211,7 +211,11 @@ const translations = <String, Map<String, String>>{
     "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installieren Sie diese Pakete mit Ihrer Paketverwaltung (Arch-Namen) und starten Sie die Einrichtung erneut: {0}",
     "Settings": "Einstellungen",
     "Back": "Zurück",
-    "Could not save the setting.": "Die Einstellung konnte nicht gespeichert werden."
+    "Could not save the setting.": "Die Einstellung konnte nicht gespeichert werden.",
+    "Solid": "Deckend",
+    "Transparent": "Durchsichtig",
+    "Glassy (blurred)": "Glas (unscharf)",
+    "Follow the desktop": "Wie der Desktop"
   },
   "fr": {
     "Language": "Langue",
@@ -423,7 +427,11 @@ const translations = <String, Map<String, String>>{
     "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installez ces paquets avec votre gestionnaire de paquets (noms Arch), puis relancez la configuration : {0}",
     "Settings": "Paramètres",
     "Back": "Retour",
-    "Could not save the setting.": "Impossible d’enregistrer le paramètre."
+    "Could not save the setting.": "Impossible d’enregistrer le paramètre.",
+    "Solid": "Opaques",
+    "Transparent": "Transparentes",
+    "Glassy (blurred)": "Verre (flouté)",
+    "Follow the desktop": "Comme le bureau"
   },
   "es": {
     "Language": "Idioma",
@@ -635,7 +643,11 @@ const translations = <String, Map<String, String>>{
     "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instala estos paquetes con tu gestor de paquetes (nombres de Arch) y vuelve a iniciar la configuración: {0}",
     "Settings": "Ajustes",
     "Back": "Atrás",
-    "Could not save the setting.": "No se pudo guardar el ajuste."
+    "Could not save the setting.": "No se pudo guardar el ajuste.",
+    "Solid": "Opacas",
+    "Transparent": "Transparentes",
+    "Glassy (blurred)": "Cristal (desenfocado)",
+    "Follow the desktop": "Como el escritorio"
   },
   "it": {
     "Language": "Lingua",
@@ -847,7 +859,11 @@ const translations = <String, Map<String, String>>{
     "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installa questi pacchetti con il tuo gestore di pacchetti (nomi Arch), poi ripeti la configurazione: {0}",
     "Settings": "Impostazioni",
     "Back": "Indietro",
-    "Could not save the setting.": "Impossibile salvare l’impostazione."
+    "Could not save the setting.": "Impossibile salvare l’impostazione.",
+    "Solid": "Opache",
+    "Transparent": "Trasparenti",
+    "Glassy (blurred)": "Vetro (sfocato)",
+    "Follow the desktop": "Come il desktop"
   },
   "pt": {
     "Language": "Idioma",
@@ -1059,7 +1075,11 @@ const translations = <String, Map<String, String>>{
     "Install these packages with your package manager (Arch names), then retry setup: {0}": "Instale estes pacotes com o seu gestor de pacotes (nomes do Arch) e repita a configuração: {0}",
     "Settings": "Definições",
     "Back": "Voltar",
-    "Could not save the setting.": "Não foi possível guardar a definição."
+    "Could not save the setting.": "Não foi possível guardar a definição.",
+    "Solid": "Opacas",
+    "Transparent": "Transparentes",
+    "Glassy (blurred)": "Vidro (desfocado)",
+    "Follow the desktop": "Como o ambiente de trabalho"
   },
   "nl": {
     "Language": "Taal",
@@ -1271,7 +1291,11 @@ const translations = <String, Map<String, String>>{
     "Install these packages with your package manager (Arch names), then retry setup: {0}": "Installeer deze pakketten met je pakketbeheerder (Arch-namen) en start de installatie opnieuw: {0}",
     "Settings": "Instellingen",
     "Back": "Terug",
-    "Could not save the setting.": "De instelling kon niet worden opgeslagen."
+    "Could not save the setting.": "De instelling kon niet worden opgeslagen.",
+    "Solid": "Dekkend",
+    "Transparent": "Doorzichtig",
+    "Glassy (blurred)": "Glas (vervaagd)",
+    "Follow the desktop": "Zoals het bureaublad"
   },
   "pl": {
     "Language": "Język",
@@ -1483,6 +1507,10 @@ const translations = <String, Map<String, String>>{
     "Install these packages with your package manager (Arch names), then retry setup: {0}": "Zainstaluj te pakiety menedżerem pakietów (nazwy z Arch), a potem ponów konfigurację: {0}",
     "Settings": "Ustawienia",
     "Back": "Wstecz",
-    "Could not save the setting.": "Nie udało się zapisać ustawienia."
+    "Could not save the setting.": "Nie udało się zapisać ustawienia.",
+    "Solid": "Nieprzezroczyste",
+    "Transparent": "Przezroczyste",
+    "Glassy (blurred)": "Szkło (rozmyte)",
+    "Follow the desktop": "Jak pulpit"
   }
 };
