@@ -10,6 +10,9 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  errors:
+    # Flutter 3.47 deprecates material.dart while this app still targets stable Flutter.
+    deprecated_member_use: ignore
   exclude:
     - build/**
     - linux/**

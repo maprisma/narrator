@@ -8,7 +8,12 @@ import 'window.dart';
 
 /// A titled card of rows, like Adw.PreferencesGroup.
 class PrefGroup extends StatelessWidget {
-  const PrefGroup({super.key, this.title, this.description, required this.children});
+  const PrefGroup({
+    super.key,
+    this.title,
+    this.description,
+    required this.children,
+  });
 
   final String? title;
   final String? description;
@@ -29,19 +34,36 @@ class PrefGroup extends StatelessWidget {
         children: [
           if (title != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.xs, 0, AppSpace.xs, AppSpace.xs),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.xs,
+                0,
+                AppSpace.xs,
+                AppSpace.xs,
+              ),
               child: Text(title!, style: theme.textTheme.titleSmall),
             ),
           if (description != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.xs, 0, AppSpace.xs, AppSpace.sm),
-              child: Text(description!,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.xs,
+                0,
+                AppSpace.xs,
+                AppSpace.sm,
+              ),
+              child: Text(
+                description!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
           Card(
             margin: EdgeInsets.zero,
             clipBehavior: Clip.antiAlias,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: rows),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: rows,
+            ),
           ),
         ],
       ),
@@ -91,7 +113,10 @@ class PrefRow extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 52),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpace.md,
+            vertical: AppSpace.sm,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -99,15 +124,25 @@ class PrefRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(title, style: theme.textTheme.bodyMedium?.copyWith(color: color)),
+                    Text(
+                      title,
+                      style: theme.textTheme.bodyMedium?.copyWith(color: color),
+                    ),
                     if (subtitle != null && subtitle!.isNotEmpty)
-                      Text(subtitle!,
-                          style: theme.textTheme.bodySmall?.copyWith(color: color ?? theme.colorScheme.onSurfaceVariant)),
+                      Text(
+                        subtitle!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: color ?? theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                   ],
                 ),
               ),
               for (final suffix in suffixes)
-                Padding(padding: const EdgeInsets.only(left: AppSpace.sm), child: suffix),
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpace.sm),
+                  child: suffix,
+                ),
             ],
           ),
         ),
@@ -135,12 +170,16 @@ class SwitchPrefRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Sensitive(
-        enabled: enabled,
-        child: InkWell(
-          onTap: () => onChanged(!value),
-          child: PrefRow(title: title, subtitle: subtitle, suffixes: [Switch(value: value, onChanged: onChanged)]),
-        ),
-      );
+    enabled: enabled,
+    child: InkWell(
+      onTap: () => onChanged(!value),
+      child: PrefRow(
+        title: title,
+        subtitle: subtitle,
+        suffixes: [Switch(value: value, onChanged: onChanged)],
+      ),
+    ),
+  );
 }
 
 /// A text entry row with a floating title, like Adw.EntryRow / Adw.PasswordEntryRow.
@@ -174,7 +213,10 @@ class _EntryPrefRowState extends State<EntryPrefRow> {
     return Sensitive(
       enabled: widget.enabled,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.xs),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.md,
+          vertical: AppSpace.xs,
+        ),
         child: Row(
           children: [
             Expanded(
@@ -194,11 +236,19 @@ class _EntryPrefRowState extends State<EntryPrefRow> {
             if (widget.password)
               IconButton(
                 tooltip: _peek ? tr('Hide text') : tr('Show text'),
-                icon: Icon(_peek ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                icon: Icon(
+                  _peek
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 20,
+                ),
                 onPressed: () => setState(() => _peek = !_peek),
               ),
             for (final suffix in widget.suffixes)
-              Padding(padding: const EdgeInsets.only(left: AppSpace.sm), child: suffix),
+              Padding(
+                padding: const EdgeInsets.only(left: AppSpace.sm),
+                child: suffix,
+              ),
           ],
         ),
       ),
@@ -218,6 +268,7 @@ class ChoiceButton extends StatelessWidget {
     required this.onPick,
     this.searchable = false,
     this.title = '',
+    this.swatches = const {},
   });
 
   final List<Option> options;
@@ -225,6 +276,7 @@ class ChoiceButton extends StatelessWidget {
   final ValueChanged<String> onPick;
   final bool searchable;
   final String title;
+  final Map<String, Color> swatches;
 
   static const double width = 240;
 
@@ -236,41 +288,74 @@ class ChoiceButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = options.where((o) => o.$1 == value).firstOrNull;
     Widget face(VoidCallback? onPressed) => SizedBox(
-          width: width,
-          child: OutlinedButton(
-            onPressed: options.isEmpty ? null : onPressed,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
-              alignment: Alignment.centerLeft,
+      width: width,
+      child: OutlinedButton(
+        onPressed: options.isEmpty ? null : onPressed,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+          alignment: Alignment.centerLeft,
+        ),
+        child: Row(
+          children: [
+            if (swatches[value] case final color?) ...[
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text(current?.$2 ?? '', overflow: TextOverflow.ellipsis),
             ),
-            child: Row(
-              children: [
-                Expanded(child: Text(current?.$2 ?? '', overflow: TextOverflow.ellipsis)),
-                const Icon(Icons.arrow_drop_down, size: 20),
-              ],
-            ),
-          ),
-        );
+            const Icon(Icons.arrow_drop_down, size: 20),
+          ],
+        ),
+      ),
+    );
     if (searchable) {
       return face(() async {
-        _pick(await showDialog<String>(
-          context: context,
-          builder: (_) => _SearchDialog(title: title, options: options, value: value),
-        ));
+        _pick(
+          await showDialog<String>(
+            context: context,
+            builder: (_) =>
+                _SearchDialog(title: title, options: options, value: value),
+          ),
+        );
       });
     }
     return MenuAnchor(
       // Counted for Esc (window.dart): an open menu closes before the window does.
       onOpen: () => openMenus.value++,
-      onClose: () => openMenus.value = openMenus.value > 0 ? openMenus.value - 1 : 0,
+      onClose: () =>
+          openMenus.value = openMenus.value > 0 ? openMenus.value - 1 : 0,
       menuChildren: [
         for (final option in options)
           MenuItemButton(
             onPressed: () => _pick(option.$1),
-            leadingIcon: Icon(option.$1 == value ? Icons.check : null, size: 18),
+            leadingIcon: Icon(
+              option.$1 == value ? Icons.check : null,
+              size: 18,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: Text(option.$2, overflow: TextOverflow.ellipsis),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (swatches[option.$1] case final color?) ...[
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(option.$2, overflow: TextOverflow.ellipsis),
+                ],
+              ),
             ),
           ),
       ],
@@ -290,7 +375,11 @@ class ChoiceButton extends StatelessWidget {
 }
 
 class _SearchDialog extends StatefulWidget {
-  const _SearchDialog({required this.title, required this.options, required this.value});
+  const _SearchDialog({
+    required this.title,
+    required this.options,
+    required this.value,
+  });
 
   final String title;
   final List<Option> options;
@@ -306,10 +395,17 @@ class _SearchDialogState extends State<_SearchDialog> {
   @override
   Widget build(BuildContext context) {
     final query = _query.toLowerCase();
-    final shown = widget.options.where((o) => o.$2.toLowerCase().contains(query)).toList();
+    final shown = widget.options
+        .where((o) => o.$2.toLowerCase().contains(query))
+        .toList();
     return AlertDialog(
       title: Text(widget.title),
-      contentPadding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
+      contentPadding: const EdgeInsets.fromLTRB(
+        AppSpace.lg,
+        AppSpace.md,
+        AppSpace.lg,
+        0,
+      ),
       content: SizedBox(
         width: 420,
         height: 420,
@@ -317,7 +413,10 @@ class _SearchDialogState extends State<_SearchDialog> {
           children: [
             TextField(
               autofocus: true,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), isDense: true),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                isDense: true,
+              ),
               onChanged: (text) => setState(() => _query = text),
               onSubmitted: (_) {
                 if (shown.isNotEmpty) Navigator.pop(context, shown.first.$1);
@@ -333,7 +432,9 @@ class _SearchDialogState extends State<_SearchDialog> {
                     dense: true,
                     title: Text(option.$2),
                     selected: option.$1 == widget.value,
-                    trailing: option.$1 == widget.value ? const Icon(Icons.check, size: 18) : null,
+                    trailing: option.$1 == widget.value
+                        ? const Icon(Icons.check, size: 18)
+                        : null,
                     onTap: () => Navigator.pop(context, option.$1),
                   );
                 },
@@ -342,7 +443,12 @@ class _SearchDialogState extends State<_SearchDialog> {
           ],
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Cancel')))],
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(tr('Cancel')),
+        ),
+      ],
     );
   }
 }
@@ -371,7 +477,9 @@ class SpinField extends StatefulWidget {
 }
 
 class _SpinFieldState extends State<SpinField> {
-  late final TextEditingController _text = TextEditingController(text: _format(widget.value));
+  late final TextEditingController _text = TextEditingController(
+    text: _format(widget.value),
+  );
   final FocusNode _focus = FocusNode();
 
   String _format(double v) => v.toStringAsFixed(widget.digits);
@@ -420,7 +528,9 @@ class _SpinFieldState extends State<SpinField> {
         IconButton.outlined(
           tooltip: tr('Decrease'),
           icon: const Icon(Icons.remove, size: 18),
-          onPressed: widget.value > widget.lower ? () => _set(widget.value - widget.step) : null,
+          onPressed: widget.value > widget.lower
+              ? () => _set(widget.value - widget.step)
+              : null,
         ),
         SizedBox(
           width: 64,
@@ -428,14 +538,19 @@ class _SpinFieldState extends State<SpinField> {
             controller: _text,
             focusNode: _focus,
             textAlign: TextAlign.center,
-            decoration: const InputDecoration(isDense: true, border: InputBorder.none),
+            decoration: const InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+            ),
             onSubmitted: _commit,
           ),
         ),
         IconButton.outlined(
           tooltip: tr('Increase'),
           icon: const Icon(Icons.add, size: 18),
-          onPressed: widget.value < widget.upper ? () => _set(widget.value + widget.step) : null,
+          onPressed: widget.value < widget.upper
+              ? () => _set(widget.value + widget.step)
+              : null,
         ),
       ],
     );

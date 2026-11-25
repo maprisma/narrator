@@ -212,5 +212,13 @@
   "Solid": "Nieprzezroczyste",
   "Transparent": "Przezroczyste",
   "Glassy (blurred)": "Szkło (rozmyte)",
-  "Follow the desktop": "Jak pulpit"
+  "Follow the desktop": "Jak pulpit",
+  "App skin": "Skórka aplikacji",
+  "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Wizualny akcent kart i obramowań; Natywny pozostawia motyw pulpitu bez zmian.",
+  "Native": "Natywny",
+  "Synthwave": "Synthwave",
+  "Cozy": "Przytulny",
+  "Terminal": "Terminal",
+  "Disco": "Disco",
+  "Zen": "Zen"
 }

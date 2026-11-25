@@ -212,5 +212,13 @@
   "Solid": "Dekkend",
   "Transparent": "Doorzichtig",
   "Glassy (blurred)": "Glas (vervaagd)",
-  "Follow the desktop": "Zoals het bureaublad"
+  "Follow the desktop": "Zoals het bureaublad",
+  "App skin": "App-stijl",
+  "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Visueel accent voor kaarten en randen; Natief laat je bureaubladthema ongemoeid.",
+  "Native": "Natief",
+  "Synthwave": "Synthwave",
+  "Cozy": "Gezellig",
+  "Terminal": "Terminal",
+  "Disco": "Disco",
+  "Zen": "Zen"
 }

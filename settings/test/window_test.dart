@@ -30,7 +30,12 @@ Widget _app(VoidCallback onClose) => MaterialApp(
             ),
           ),
           const TextField(),
-          const SizedBox(height: 200, width: 200, key: Key('empty')),
+          GestureDetector(
+            key: const Key('empty'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: const SizedBox(height: 200, width: 200),
+          ),
         ],
       ),
     ),
@@ -129,6 +134,7 @@ void main() {
         file: () => file,
         defaultSize: fallback,
         delay: const Duration(milliseconds: 20),
+        notUsers: () async => false,
       );
       expect(window.readSaved(), isNull);
       window.resized({'width': 700, 'height': 500});

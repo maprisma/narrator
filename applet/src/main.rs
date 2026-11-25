@@ -6,7 +6,9 @@ mod corners;
 mod look;
 mod shot;
 mod shot_files;
+mod skin;
 use shot::{Shot, ShotMsg};
+use skin::{SKIN_KEY, SKINS, normalize_skin, skin_label, skin_style};
 // Maprisma Narrator: the headphones in the panel. Left click opens the menu (again: closes it; Esc
 // closes it too)
 // (Start / Pause / Stop, what needs setting up, reading area, speed, settings); right
@@ -33,8 +35,8 @@ use cosmic::widget::rectangle_tracker::{
     RectangleTracker, RectangleUpdate, rectangle_tracker_subscription,
 };
 use cosmic::widget::{
-    Id, autosize, button, column, container, divider, icon, mouse_area, row, scrollable, slider, space,
-    text, toggler,
+    Id, autosize, button, column, container, divider, icon, mouse_area, row, scrollable, slider,
+    space, text, toggler,
 };
 use cosmic::{Element, theme};
 use serde_json::{Value, json};
@@ -109,7 +111,9 @@ fn dim_text(theme: &cosmic::Theme) -> iced_text::Style {
 }
 
 fn lit_svg() -> theme::Svg {
-    theme::Svg::custom(|theme: &cosmic::Theme| iced_svg::Style { color: Some(theme.cosmic().accent_color().into()) })
+    theme::Svg::custom(|theme: &cosmic::Theme| iced_svg::Style {
+        color: Some(theme.cosmic().accent_color().into()),
+    })
 }
 
 fn fill(line: Line, radius: f32) -> theme::Container<'static> {
@@ -120,6 +124,79 @@ fn fill(line: Line, radius: f32) -> theme::Container<'static> {
             ..Default::default()
         },
         ..Default::default()
+    })
+}
+
+fn with_alpha(mut color: Color, alpha: f32) -> Color {
+    color.a = alpha;
+    color
+}
+
+fn active_theme(skin: &str, corners_choice: &str) -> Option<cosmic::Theme> {
+    if let Some(st) = skin_style(skin) {
+        Some(look::theme_from(
+            &st.palette(),
+            Some(corners::radius(corners_choice, corners::desktop_radius())),
+        ))
+    } else {
+        corners::theme(corners_choice)
+    }
+}
+
+fn skin_card(skin: &str, sub: bool) -> theme::Container<'static> {
+    let style = skin_style(skin);
+    theme::Container::custom(move |theme: &cosmic::Theme| {
+        let base = Color::from(theme.cosmic().on_bg_color());
+        let (bg, border, width) = match style {
+            Some(st) if sub => (
+                with_alpha(st.bg_tint, 0.22),
+                with_alpha(st.border_tint, 0.40),
+                1.0,
+            ),
+            Some(st) => (
+                with_alpha(st.bg_tint, 0.28),
+                with_alpha(st.border_tint, 0.48),
+                st.border_width,
+            ),
+            None => (with_alpha(base, 0.05), with_alpha(base, 0.12), 1.0),
+        };
+        iced_container::Style {
+            background: Some(Background::Color(bg)),
+            border: Border {
+                radius: (if sub {
+                    corners::now().small
+                } else {
+                    corners::now().radius
+                })
+                .into(),
+                width,
+                color: border,
+            },
+            ..Default::default()
+        }
+    })
+}
+
+fn skin_pill(skin: &str) -> theme::Container<'static> {
+    let style = skin_style(skin);
+    theme::Container::custom(move |theme: &cosmic::Theme| {
+        let base = Color::from(theme.cosmic().on_bg_color());
+        let (bg, border) = match style {
+            Some(st) => (
+                with_alpha(st.accent, 0.24),
+                with_alpha(st.border_tint, 0.48),
+            ),
+            None => (with_alpha(base, 0.12), Color::TRANSPARENT),
+        };
+        iced_container::Style {
+            background: Some(Background::Color(bg)),
+            border: Border {
+                radius: corners::now().pill.into(),
+                width: 1.0,
+                color: border,
+            },
+            ..Default::default()
+        }
     })
 }
 
@@ -137,7 +214,13 @@ enum Escape {
     Nothing,
 }
 
-fn escape(id: window::Id, popup: Option<window::Id>, note: bool, menus: bool, settings: bool) -> Escape {
+fn escape(
+    id: window::Id,
+    popup: Option<window::Id>,
+    note: bool,
+    menus: bool,
+    settings: bool,
+) -> Escape {
     if note {
         Escape::Note
     } else if popup != Some(id) {
@@ -164,16 +247,17 @@ struct Narrator {
     busy: bool,         // a request is on its way
     shot: Shot,
     corners: String, // Settings › Corners (corners.rs)
+    skin: String,
     screenshot_key: bool,
     /// The settings page (Language, F12, Corners) is shown instead of the menu.
     settings_open: bool,
     language_open: bool,
     corners_open: bool,
+    skin_open: bool,
     setting_error: bool,
 }
 
-/// Settings › F12 saves a screenshot (on unless `"screenshot_key": false`) and › Corners
-/// (`"corners"`), set in the settings window and kept in the same settings.json as its language.
+/// App skin, Corners and F12 save a screenshot share the settings window's JSON file.
 fn settings_file() -> std::path::PathBuf {
     std::env::var_os("XDG_CONFIG_HOME")
         .filter(|v| !v.is_empty())
@@ -184,7 +268,7 @@ fn settings_file() -> std::path::PathBuf {
         .join("maprisma-narrator/settings.json")
 }
 
-fn look_settings() -> (bool, String) {
+fn look_settings() -> (bool, String, String) {
     let saved = std::fs::read_to_string(settings_file())
         .ok()
         .and_then(|s| serde_json::from_str::<Value>(&s).ok())
@@ -192,18 +276,23 @@ fn look_settings() -> (bool, String) {
     (
         saved.get("screenshot_key").and_then(Value::as_bool) != Some(false),
         corners::normalize(saved.get("corners").and_then(Value::as_str).unwrap_or("")).to_string(),
+        normalize_skin(saved.get(SKIN_KEY).and_then(Value::as_str).unwrap_or("")).to_string(),
     )
 }
 
 /// Saves one setting into settings.json, keeping every other key (as the settings window does).
-fn save_setting(key: &str, value: Value) -> std::io::Result<()> {
+fn save_setting(key: &str, value: Option<Value>) -> std::io::Result<()> {
     let file = settings_file();
     let mut settings = std::fs::read_to_string(&file)
         .ok()
         .and_then(|s| serde_json::from_str::<Value>(&s).ok())
         .filter(Value::is_object)
         .unwrap_or_else(|| json!({}));
-    settings[key] = value;
+    if let Some(value) = value {
+        settings[key] = value;
+    } else if let Some(map) = settings.as_object_mut() {
+        map.remove(key);
+    }
     if let Some(parent) = file.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -228,14 +317,30 @@ fn language_options() -> Vec<(&'static str, String)> {
     let saved = std::fs::read_to_string(settings_file())
         .ok()
         .and_then(|s| serde_json::from_str::<Value>(&s).ok())
-        .and_then(|v| v.get("interface_language").and_then(Value::as_str).map(str::to_owned))
+        .and_then(|v| {
+            v.get("interface_language")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
         .filter(|c| LANGUAGES.iter().any(|(code, _)| code == c))
         .unwrap_or_else(|| "auto".into());
     let system = i18n::system_language(|k| std::env::var(k).ok());
-    let name = LANGUAGES.iter().find(|(c, _)| *c == system).map_or("English", |(_, n)| n);
+    let name = LANGUAGES
+        .iter()
+        .find(|(c, _)| *c == system)
+        .map_or("English", |(_, n)| n);
     std::iter::once(("auto", trf("System ({0})", &[name])))
         .chain(LANGUAGES.iter().map(|(c, n)| (*c, n.to_string())))
-        .map(|(c, label)| (c, if saved == c { format!("✓ {label}") } else { label }))
+        .map(|(c, label)| {
+            (
+                c,
+                if saved == c {
+                    format!("✓ {label}")
+                } else {
+                    label
+                },
+            )
+        })
         .collect()
 }
 
@@ -256,8 +361,10 @@ enum Message {
     ToggleSettings,
     ToggleLanguage,
     ToggleCorners,
+    ToggleSkin,
     Language(&'static str),
     Corners(&'static str),
+    Skin(&'static str),
     SetShotKey(bool),
     Shot(ShotMsg),
 }
@@ -385,7 +492,7 @@ impl Narrator {
                     button::suggested(step.label).on_press_maybe(idle.then_some(Message::Step)),
                 );
             }
-            top = top.push(block);
+            top = top.push(container(block).padding(8).class(skin_card(&self.skin, true)));
         }
 
         let mut actions = column![divider::horizontal::default()];
@@ -422,7 +529,9 @@ impl Narrator {
                     slider(MIN_SPEED..=MAX_SPEED, speed, Message::Speed)
                         .step(0.05_f32)
                         .on_release(Message::SpeedDone),
-                    text::body(format!("{speed:.2}×")).width(Length::Fixed(48.0)),
+                    container(text::body(format!("{speed:.2}×"))).padding([2, 6])
+                        .width(Length::Fixed(48.0))
+                        .class(skin_pill(&self.skin)),
                 ]
                 .spacing(12)
                 .align_y(Alignment::Center),
@@ -432,10 +541,13 @@ impl Narrator {
             .push(divider::horizontal::default())
             .push(menu_button(text::body(tr("Settings…"))).on_press(Message::OpenSettings));
 
-        column![padded_control(top).padding([12, 16]), actions]
-            .width(Length::Fixed(POPUP_WIDTH))
-            .padding([0, 0, 8, 0])
-            .into()
+        column![
+            padded_control(container(top).padding(12).class(skin_card(&self.skin, false))).padding([12, 16]),
+            actions
+        ]
+        .width(Length::Fixed(POPUP_WIDTH))
+        .padding([0, 0, 8, 0])
+        .into()
     }
 
     /// Settings (as Maprisma Launcher's page): ← Back and the title, then one row per setting,
@@ -452,8 +564,12 @@ impl Narrator {
         let choice = |label: String, open: bool, message: Message| -> Element<'static, Message> {
             button::text(label)
                 .trailing_icon(
-                    icon::from_name(if open { "pan-up-symbolic" } else { "pan-down-symbolic" })
-                        .size(16),
+                    icon::from_name(if open {
+                        "pan-up-symbolic"
+                    } else {
+                        "pan-down-symbolic"
+                    })
+                    .size(16),
                 )
                 .on_press(message)
                 .into()
@@ -486,7 +602,9 @@ impl Narrator {
         }
         page = page.push(setting(
             tr("F12 saves a screenshot"),
-            toggler(self.screenshot_key).on_toggle(Message::SetShotKey).into(),
+            toggler(self.screenshot_key)
+                .on_toggle(Message::SetShotKey)
+                .into(),
         ));
         let desktop = corners::desktop_radius().round().to_string();
         let corner_choices = [
@@ -506,12 +624,53 @@ impl Narrator {
         ));
         if self.corners_open {
             for (choice, label) in corner_choices {
-                let label = if self.corners == choice { format!("✓ {label}") } else { label };
+                let label = if self.corners == choice {
+                    format!("✓ {label}")
+                } else {
+                    label
+                };
                 page = page.push(menu_button(text::body(label)).on_press(Message::Corners(choice)));
             }
         }
+        page = page.push(setting(
+            tr("App skin"),
+            choice(skin_label(&self.skin), self.skin_open, Message::ToggleSkin),
+        ));
+        if self.skin_open {
+            for skin in SKINS {
+                let label = if self.skin == skin {
+                    format!("✓ {}", skin_label(skin))
+                } else {
+                    skin_label(skin)
+                };
+                let content: Element<Message> = if let Some(st) = skin_style(skin) {
+                    row![
+                        container(space::horizontal())
+                            .width(Length::Fixed(10.0))
+                            .height(Length::Fixed(10.0))
+                            .class(theme::Container::custom(move |_| iced_container::Style {
+                                background: Some(Background::Color(st.accent)),
+                                border: Border {
+                                    radius: 5.0.into(),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            })),
+                        text::body(label)
+                    ]
+                    .spacing(8)
+                    .align_y(Alignment::Center)
+                    .into()
+                } else {
+                    text::body(label).into()
+                };
+                page = page.push(menu_button(content).on_press(Message::Skin(skin)));
+            }
+        }
         if self.setting_error {
-            page = page.push(padded_control(text::body(tr("Could not save the setting."))));
+            page = page.push(padded_control(text::body(tr(
+                "Could not save the setting.",
+            ))));
         }
         scrollable(page.width(Length::Fixed(POPUP_WIDTH)).padding([0, 0, 8, 0]))
             .height(Length::Shrink)
@@ -519,13 +678,14 @@ impl Narrator {
     }
 
     fn save(&mut self, key: &str, value: Value) {
-        self.setting_error = save_setting(key, value).is_err();
+        self.setting_error = save_setting(key, Some(value)).is_err();
     }
 
     fn read_look(&mut self) -> Task<Message> {
-        let (screenshot_key, corners) = look_settings();
+        let (screenshot_key, corners, skin) = look_settings();
         self.screenshot_key = screenshot_key;
         self.corners = corners;
+        self.skin = skin;
         corners::set_current(&self.corners);
         // The desktop's colours and corners (Maprisma Theme can change them any time); the
         // popup's view reads them (corners::apply), this only re-reads them (at most every 5 s).
@@ -549,6 +709,7 @@ impl Narrator {
         self.settings_open = shot_page_settings();
         self.language_open = false;
         self.corners_open = false;
+        self.skin_open = false;
     }
 
     fn send(&mut self, payload: Value) -> Task<Message> {
@@ -583,7 +744,10 @@ impl cosmic::Application for Narrator {
             ..Default::default()
         };
         let look = app.read_look();
-        (app, Task::batch([look, Task::done(cosmic::Action::App(Message::Poll))]))
+        (
+            app,
+            Task::batch([look, Task::done(cosmic::Action::App(Message::Poll))]),
+        )
     }
 
     fn on_close_requested(&self, id: window::Id) -> Option<Message> {
@@ -626,12 +790,24 @@ impl cosmic::Application for Narrator {
                 return look;
             }
             Message::Shot(ShotMsg::Escape(id)) => {
-                let menus = self.language_open || self.corners_open;
-                return match escape(id, self.popup, self.shot.showing(id), menus, self.settings_open) {
-                    Escape::Note => self.shot.update(ShotMsg::Escape(id), self.screenshot_key, true, Message::Shot),
+                let menus = self.language_open || self.corners_open || self.skin_open;
+                return match escape(
+                    id,
+                    self.popup,
+                    self.shot.showing(id),
+                    menus,
+                    self.settings_open,
+                ) {
+                    Escape::Note => self.shot.update(
+                        ShotMsg::Escape(id),
+                        self.screenshot_key,
+                        true,
+                        Message::Shot,
+                    ),
                     Escape::Menus => {
                         self.language_open = false;
                         self.corners_open = false;
+                        self.skin_open = false;
                         Task::none()
                     }
                     Escape::Back => {
@@ -648,7 +824,9 @@ impl cosmic::Application for Narrator {
                     ShotMsg::Key(id) => self.popup == Some(*id),
                     _ => true,
                 };
-                return self.shot.update(message, self.screenshot_key, ours, Message::Shot);
+                return self
+                    .shot
+                    .update(message, self.screenshot_key, ours, Message::Shot);
             }
             Message::Watched(state) => self.set_reading(state.as_ref()),
             Message::State(state) => {
@@ -709,24 +887,40 @@ impl cosmic::Application for Narrator {
                 self.settings_open = !self.settings_open;
                 self.language_open = false;
                 self.corners_open = false;
+                self.skin_open = false;
             }
             Message::ToggleLanguage => {
                 self.language_open = !self.language_open;
                 self.corners_open = false;
+                self.skin_open = false;
             }
             Message::ToggleCorners => {
                 self.corners_open = !self.corners_open;
                 self.language_open = false;
+                self.skin_open = false;
             }
             Message::Language(code) => {
                 self.save("interface_language", json!(code));
                 self.language_open = false;
             }
             Message::Corners(choice) => {
-                self.save("corners", json!(choice));
+                self.setting_error =
+                    save_setting("corners", (choice != "desktop").then(|| json!(choice))).is_err();
                 self.corners_open = false;
                 self.corners = choice.to_string();
                 corners::set_current(&self.corners);
+            }
+            Message::ToggleSkin => {
+                self.skin_open = !self.skin_open;
+                self.language_open = false;
+                self.corners_open = false;
+            }
+            Message::Skin(choice) => {
+                let choice = normalize_skin(choice);
+                self.setting_error =
+                    save_setting(SKIN_KEY, (choice != "native").then(|| json!(choice))).is_err();
+                self.skin = choice.to_owned();
+                self.skin_open = false;
             }
             Message::SetShotKey(on) => {
                 self.save("screenshot_key", json!(on));
@@ -813,12 +1007,20 @@ impl cosmic::Application for Narrator {
 
     fn view_window(&self, id: window::Id) -> Element<'_, Message> {
         crate::look::keep_fonts();
-        let page = if self.settings_open { self.settings_page() } else { self.menu() };
+        let page = if self.settings_open {
+            self.settings_page()
+        } else {
+            self.menu()
+        };
         let content = match self.shot.card(id, Message::Shot) {
             Some(card) => column![card, page].width(Length::Fixed(POPUP_WIDTH)).into(),
             None => page,
         };
-        corners::apply(&self.corners, self.core.applet.popup_container(content))
+        let content = self.core.applet.popup_container(content);
+        match active_theme(&self.skin, &self.corners) {
+            Some(theme) => cosmic::iced::widget::themer(Some(theme), content).into(),
+            None => content.into(),
+        }
     }
 
     fn style(&self) -> Option<cosmic::iced::theme::Style> {
@@ -837,9 +1039,15 @@ mod tests {
         assert_eq!(escape(popup, Some(popup), true, true, true), Escape::Note);
         assert_eq!(escape(popup, Some(popup), false, true, true), Escape::Menus);
         assert_eq!(escape(popup, Some(popup), false, false, true), Escape::Back);
-        assert_eq!(escape(popup, Some(popup), false, false, false), Escape::ClosePopup);
+        assert_eq!(
+            escape(popup, Some(popup), false, false, false),
+            Escape::ClosePopup
+        );
         // Not from the open popup (e.g. the panel button): nothing.
-        assert_eq!(escape(other, Some(popup), false, true, true), Escape::Nothing);
+        assert_eq!(
+            escape(other, Some(popup), false, true, true),
+            Escape::Nothing
+        );
         assert_eq!(escape(popup, None, false, false, false), Escape::Nothing);
     }
 }

@@ -13,6 +13,7 @@ import 'desktop_look.dart';
 import 'desktop_theme.dart';
 import 'i18n.dart';
 import 'look.dart';
+import 'skin.dart';
 import 'settings_page.dart';
 import 'shot.dart';
 import 'window.dart';
@@ -24,7 +25,9 @@ final appWindow = AppWindow(
   file: () => File('${languageSettingsFile().parent.path}/window.json'),
   defaultSize: const Size(640, 820),
   // Maprisma Tiling on KDE sizes the window without GTK knowing; Hyprland: only floating counts.
-  notUsers: () async => tiledByMaprismaTiling('com.maprisma.Narrator') || await hyprlandSizeNotUsers(),
+  notUsers: () async =>
+      tiledByMaprismaTiling('com.maprisma.Narrator') ||
+      await hyprlandSizeNotUsers(),
 );
 
 Future<void> main() async {
@@ -38,7 +41,13 @@ Future<void> main() async {
 }
 
 class SettingsApp extends StatefulWidget {
-  const SettingsApp({super.key, required this.bridge, this.desktopTheme, this.lookWatcher, this.onClose});
+  const SettingsApp({
+    super.key,
+    required this.bridge,
+    this.desktopTheme,
+    this.lookWatcher,
+    this.onClose,
+  });
 
   final Bridge bridge;
   final DesktopTheme? desktopTheme;
@@ -58,6 +67,7 @@ class SettingsApp extends StatefulWidget {
 class _SettingsAppState extends State<SettingsApp> with WidgetsBindingObserver {
   late final DesktopTheme _desktop = widget.desktopTheme ?? DesktopTheme();
   Timer? _lookTimer;
+
   /// Maprisma Settings › App windows: see-through windows for all Maprisma apps (window_style.dart).
   WindowStyleWatcher? _windowStyle;
 
@@ -71,9 +81,15 @@ class _SettingsAppState extends State<SettingsApp> with WidgetsBindingObserver {
     _desktop.start();
     if (widget.lookWatcher != null) {
       WidgetsBinding.instance.addObserver(this);
-      _lookTimer = Timer.periodic(DesktopLookWatcher.filesEvery, (_) => _reloadLook());
+      _lookTimer = Timer.periodic(
+        DesktopLookWatcher.filesEvery,
+        (_) => _reloadLook(),
+      );
       _windowStyle = WindowStyleWatcher();
-      _windowPlace = WindowPlaceKeeper(saved: appWindow.readPlace(), save: appWindow.savePlace)..start();
+      _windowPlace = WindowPlaceKeeper(
+        saved: appWindow.readPlace(),
+        save: appWindow.savePlace,
+      )..start();
     }
   }
 
@@ -102,7 +118,10 @@ class _SettingsAppState extends State<SettingsApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final style = _windowStyle;
     if (style == null) return _app(1);
-    return ValueListenableBuilder<double>(valueListenable: style, builder: (context, alpha, _) => _app(alpha));
+    return ValueListenableBuilder<double>(
+      valueListenable: style,
+      builder: (context, alpha, _) => _app(alpha),
+    );
   }
 
   Widget _app(double alpha) {
@@ -126,14 +145,43 @@ class _SettingsAppState extends State<SettingsApp> with WidgetsBindingObserver {
                 debugShowCheckedModeBanner: false,
                 navigatorKey: shotNavigator,
                 scaffoldMessengerKey: shotMessenger,
-                themeMode: appThemeMode(colors),
-                theme: withWindowAlpha(appTheme(Brightness.light, colors, radius, fonts: desktop.fonts), alpha),
-                darkTheme: withWindowAlpha(appTheme(Brightness.dark, colors, radius, fonts: desktop.fonts), alpha),
+                themeMode: settings.skin == 'native'
+                    ? appThemeMode(colors)
+                    : ThemeMode.dark,
+                theme: withWindowAlpha(
+                  applySkinToTheme(
+                    appTheme(
+                      Brightness.light,
+                      colors,
+                      radius,
+                      fonts: desktop.fonts,
+                    ),
+                    settings.skin,
+                    radius: radius,
+                  ),
+                  alpha,
+                ),
+                darkTheme: withWindowAlpha(
+                  applySkinToTheme(
+                    appTheme(
+                      Brightness.dark,
+                      colors,
+                      radius,
+                      fonts: desktop.fonts,
+                    ),
+                    settings.skin,
+                    radius: radius,
+                  ),
+                  alpha,
+                ),
                 builder: (context, child) {
                   _desktop.syncHeader(Theme.of(context));
                   return ShotScope(child: child!);
                 },
-                home: EscapeCloses(onClose: widget.onClose ?? appWindow.close, child: SettingsPage(bridge: widget.bridge)),
+                home: EscapeCloses(
+                  onClose: widget.onClose ?? appWindow.close,
+                  child: SettingsPage(bridge: widget.bridge),
+                ),
               );
             },
           ),

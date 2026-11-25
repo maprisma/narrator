@@ -212,5 +212,13 @@
   "Solid": "Opaques",
   "Transparent": "Transparentes",
   "Glassy (blurred)": "Verre (flouté)",
-  "Follow the desktop": "Comme le bureau"
+  "Follow the desktop": "Comme le bureau",
+  "App skin": "Apparence",
+  "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Accent visuel pour les cartes et bordures ; Natif conserve exactement le thème du bureau.",
+  "Native": "Natif",
+  "Synthwave": "Synthwave",
+  "Cozy": "Cosy",
+  "Terminal": "Terminal",
+  "Disco": "Disco",
+  "Zen": "Zen"
 }
