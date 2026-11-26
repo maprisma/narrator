@@ -2,3 +2,4 @@ target/
 __pycache__/
 settings/build/
 settings/.dart_tool/
+pubspec_overrides.yaml

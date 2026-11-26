@@ -6,9 +6,8 @@ license = "MIT"
 description = "COSMIC panel applet for Maprisma Narrator: start, pause and stop reading aloud"
 
 [dependencies]
+maprisma-kit = { git = "https://github.com/maprisma/maprisma-kit-rs", tag = "v0.1.0", default-features = false, features = ["look", "corners", "shot", "shot-ui"] }
 serde_json = "1"
-libc = "0.2"
-png = "0.18"
 tokio = { version = "1", features = ["process", "io-util", "time", "macros", "rt", "net"] }
 
 [dependencies.libcosmic]

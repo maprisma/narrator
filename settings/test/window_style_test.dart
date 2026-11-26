@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:maprisma_narrator/window_style.dart';
+import 'package:maprisma_ui/window_style.dart';
 
 void main() {
   late Directory tmp;

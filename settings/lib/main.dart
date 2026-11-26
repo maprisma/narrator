@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:maprisma_ui/window_style.dart';
 
 import 'app_theme.dart';
 import 'bridge.dart';
@@ -17,7 +18,6 @@ import 'skin.dart';
 import 'settings_page.dart';
 import 'shot.dart';
 import 'window.dart';
-import 'window_style.dart';
 
 /// The settings window (GTK runner): Esc closes it, its size is kept next to the settings.
 final appWindow = AppWindow(

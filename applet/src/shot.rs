@@ -16,7 +16,7 @@ use cosmic::iced::{Alignment, Background, Border, Length, Subscription, event};
 use cosmic::widget::{self, button, column, container, row, space, text};
 use cosmic::{Element, theme};
 
-use crate::shot_files;
+use maprisma_kit::shot::{self as shot_files, Saved};
 use crate::tr;
 
 static NOTE_ID: LazyLock<widget::Id> = LazyLock::new(|| widget::Id::new("shot-note"));
@@ -26,7 +26,7 @@ pub enum ShotMsg {
     Key(window::Id),
     Escape(window::Id),
     Captured(window::Id, Screenshot),
-    Saved(window::Id, Result<PathBuf, String>),
+    Saved(window::Id, Result<Saved, String>),
     Text(String),
     Done,
 }
@@ -51,12 +51,15 @@ impl Default for Shot {
     }
 }
 
-fn why(error: &std::io::Error) -> String {
-    let text = error.to_string();
+fn strip_os_error(text: &str) -> String {
     match text.find(" (os error ") {
         Some(at) => text[..at].to_string(),
-        None => text,
+        None => text.to_string(),
     }
+}
+
+fn why(error: &std::io::Error) -> String {
+    strip_os_error(&error.to_string())
 }
 
 impl Shot {
@@ -69,11 +72,12 @@ impl Shot {
     pub fn subscription() -> Subscription<ShotMsg> {
         event::listen_with(|event, _status, id| match event {
             cosmic::iced::Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }) => {
-                let plain = !(modifiers.control() || modifiers.shift() || modifiers.alt() || modifiers.logo());
-                match key {
-                    keyboard::Key::Named(Named::F12) if plain => Some(ShotMsg::Key(id)),
-                    keyboard::Key::Named(Named::Escape) => Some(ShotMsg::Escape(id)),
-                    _ => None,
+                if shot_files::is_shot_key(&key, modifiers) {
+                    Some(ShotMsg::Key(id))
+                } else if matches!(key, keyboard::Key::Named(Named::Escape)) {
+                    Some(ShotMsg::Escape(id))
+                } else {
+                    None
                 }
             }
             _ => None,
@@ -108,7 +112,7 @@ impl Shot {
                         let (tx, rx) = oneshot::channel();
                         std::thread::spawn(move || {
                             let saved = shot_files::save_screenshot(name, &shot.rgba, shot.size.width, shot.size.height)
-                                .map_err(|e| why(&e));
+                                .map_err(|e| strip_os_error(&e));
                             let _ = tx.send(saved);
                         });
                         let saved = rx.await.unwrap_or_else(|_| Err("the picture could not be written".into()));
@@ -119,9 +123,8 @@ impl Shot {
             ShotMsg::Saved(id, saved) => {
                 if matches!(self.phase, Phase::Busy(busy) if busy == id) {
                     match saved {
-                        Ok(path) => {
-                            let shown = shot_files::shown(&path);
-                            self.phase = Phase::Note { window: id, path, shown, text: String::new() };
+                        Ok(saved) => {
+                            self.phase = Phase::Note { window: id, path: saved.path, shown: saved.shown, text: String::new() };
                             return widget::text_input::focus(NOTE_ID.clone());
                         }
                         Err(error) => {
@@ -160,7 +163,7 @@ impl Shot {
     fn finish(&mut self, keep: bool) {
         match std::mem::take(&mut self.phase) {
             Phase::Note { window, path, text, .. } => {
-                if keep && let Err(error) = shot_files::save_note(&path, &text) {
+                if keep && let Err(error) = shot_files::save_note(&path, self.app_name, &text) {
                     self.phase = Phase::Error {
                         window,
                         text: tr("The note could not be saved: {0}").to_string().replace("{0}", &why(&error)),

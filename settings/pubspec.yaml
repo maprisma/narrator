@@ -35,6 +35,16 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   file_selector: ^1.1.0
+  maprisma_core_kit:
+    git:
+      url: https://github.com/maprisma/maprisma-kit.git
+      ref: 39c68c8b9dba8d0cc1aa7b3703832ce8f67dc85e # v0.1.0
+      path: packages/maprisma_core_kit
+  maprisma_ui:
+    git:
+      url: https://github.com/maprisma/maprisma-kit.git
+      ref: 39c68c8b9dba8d0cc1aa7b3703832ce8f67dc85e # v0.1.0
+      path: packages/maprisma_ui
 
 dev_dependencies:
   flutter_test:

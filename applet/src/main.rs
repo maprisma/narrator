@@ -1,11 +1,8 @@
 #[path = "../../translations/i18n.rs"]
 mod i18n;
 use i18n::{message, tr, trf};
-#[allow(dead_code)] // the shared copy of every Maprisma COSMIC app; not every part is used here
-mod corners;
-mod look;
+use maprisma_kit::{corners, look};
 mod shot;
-mod shot_files;
 mod skin;
 use shot::{Shot, ShotMsg};
 use skin::{SKIN_KEY, SKINS, normalize_skin, skin_label, skin_style};

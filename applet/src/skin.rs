@@ -1,5 +1,6 @@
-use crate::{look, tr};
+use crate::tr;
 use cosmic::iced::Color;
+use maprisma_kit::look;
 
 pub const SKIN_KEY: &str = "skin";
 pub const SKINS: [&str; 6] = ["native", "synthwave", "cozy", "terminal", "disco", "zen"];

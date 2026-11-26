@@ -19,6 +19,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:maprisma_core_kit/desktop.dart'
+    show hyprNotUsers, hyprPosition, hyprlandSizeNotUsers, onAMonitor;
+
+export 'package:maprisma_core_kit/desktop.dart'
+    show hyprNotUsers, hyprPosition, hyprlandSizeNotUsers, onAMonitor, tiledByMaprismaTiling;
 
 /// Drop-down menus open right now (ChoiceButton counts them): while one is open, its own Esc
 /// closes it and [EscapeCloses] lets the key pass.
@@ -223,41 +228,6 @@ class AppWindow {
   void dispose() => _pending?.cancel();
 }
 
-/// From `hyprctl -j clients`: where [processId]'s window is, when it floats and isn't fullscreen
-/// (a tiled or fullscreen place is not the user's); null otherwise.
-(int, int)? hyprPosition(String clientsJson, int processId) {
-  if (hyprNotUsers(clientsJson, processId) != false) return null;
-  for (final client in jsonDecode(clientsJson) as List) {
-    if (client is Map && client['pid'] == processId) {
-      final at = client['at'];
-      if (at is List && at.length == 2 && at[0] is int && at[1] is int) return (at[0] as int, at[1] as int);
-    }
-  }
-  return null;
-}
-
-/// From `hyprctl -j monitors`: whether a window at [position] (its top left) with [size] keeps
-/// at least 48 px on a screen, so a place on a screen that is gone isn't used.
-bool onAMonitor(String monitorsJson, (int, int) position, (int, int) size) {
-  Object? list;
-  try {
-    list = jsonDecode(monitorsJson);
-  } on FormatException {
-    return false;
-  }
-  if (list is! List) return false;
-  final (x, y) = position;
-  for (final m in list) {
-    if (m is! Map) continue;
-    final scale = (m['scale'] is num && (m['scale'] as num) > 0) ? (m['scale'] as num).toDouble() : 1.0;
-    final mx = m['x'], my = m['y'], mw = m['width'], mh = m['height'];
-    if (mx is! num || my is! num || mw is! num || mh is! num) continue;
-    final w = mw / scale, h = mh / scale;
-    if (x + size.$1 - 48 >= mx && x + 48 <= mx + w && y >= my && y + 48 <= my + h) return true;
-  }
-  return false;
-}
-
 /// Hyprland: the window opens where the user left it (Uwe, 2026-11-14, every Maprisma window;
 /// the same keeper as in the other Maprisma apps' window_size.dart). A Wayland window can't place
 /// itself or hear that it was moved, and the runner hides it before Dart could ask, so while it
@@ -361,46 +331,6 @@ final class WindowPlaceKeeper {
   void dispose() => _timer?.cancel();
 }
 
-/// Hyprland marks every window as tiled, floating ones too, so the runner can't tell whether a
-/// size is the user's: there `hyprctl -j clients` decides. True when this process's window is
-/// tiled or fullscreen (not a size to keep); false on other desktops or when it can't be told.
-/// Shared in every Maprisma Flutter app's size code (Uwe, 2026-11-14).
-Future<bool> hyprlandSizeNotUsers({
-  Map<String, String>? environment,
-  int? processId,
-  Future<ProcessResult> Function()? clients,
-}) async {
-  final env = environment ?? Platform.environment;
-  if (!_hyprlandDesktop(env)) return false;
-  try {
-    final result = await (clients ?? () => Process.run('hyprctl', ['-j', 'clients']))()
-        .timeout(const Duration(seconds: 2));
-    if (result.exitCode != 0) return false;
-    return hyprNotUsers(result.stdout.toString(), processId ?? pid) ?? false;
-  } on Object {
-    return false;
-  }
-}
-
-/// From `hyprctl -j clients`: whether [processId]'s window is tiled or fullscreen; null when the
-/// list has no window of it.
-bool? hyprNotUsers(String clientsJson, int processId) {
-  Object? list;
-  try {
-    list = jsonDecode(clientsJson);
-  } on FormatException {
-    return null;
-  }
-  if (list is! List) return null;
-  for (final client in list) {
-    if (client is Map && client['pid'] == processId) {
-      final fullscreen = client['fullscreen'];
-      return client['floating'] != true || (fullscreen is num && fullscreen != 0) || fullscreen == true;
-    }
-  }
-  return null;
-}
-
 /// MAPRISMA_DESKTOP, else XDG_CURRENT_DESKTOP; Hyprland's instance signature only when neither
 /// is set (a stale one stays in the systemd user environment after a Hyprland session).
 bool _hyprlandDesktop(Map<String, String> env) {
@@ -414,53 +344,4 @@ bool _hyprlandDesktop(Map<String, String> env) {
       .toList();
   if (names.isNotEmpty) return names.contains('hyprland');
   return (env['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty;
-}
-
-/// Maprisma Tiling (the KWin script) sizes the windows it tiles itself, and no tiled state reaches
-/// GTK (it only moves the frame), so the runner's "free" can't see it: on Plasma with the script
-/// on, only an app it always floats (its `floatingClasses`, by default the Launcher) keeps a size.
-/// [environment] and [systemData] are for tests.
-bool tiledByMaprismaTiling(String appId, {Map<String, String>? environment, String systemData = '/usr/share'}) {
-  final env = environment ?? Platform.environment;
-  final names = (env['XDG_CURRENT_DESKTOP'] ?? '').toUpperCase().split(':');
-  if (!names.contains('KDE')) return false;
-  final home = env['HOME'] ?? '/';
-  String xdg(String key, String fallback) {
-    final v = env[key] ?? '';
-    return v.startsWith('/') ? v : '$home/$fallback';
-  }
-
-  String text;
-  try {
-    final file = File('${xdg('XDG_CONFIG_HOME', '.config')}/kwinrc');
-    text = file.lengthSync() > 1024 * 1024 ? '' : file.readAsStringSync();
-  } on Object {
-    text = '';
-  }
-  String? value(String group, String key) {
-    String? current, found;
-    for (final raw in text.split('\n')) {
-      final line = raw.trim();
-      if (line.startsWith('[') && line.endsWith(']')) {
-        current = line.substring(1, line.length - 1);
-      } else if (current == group) {
-        final eq = line.indexOf('=');
-        if (eq > 0 && line.substring(0, eq).trim() == key) found = line.substring(eq + 1).trim();
-      }
-    }
-    return found;
-  }
-
-  final enabled = value('Plugins', 'maprisma-tilingEnabled');
-  if (enabled == 'false') return false;
-  // Not switched either way: on by default once installed.
-  if (enabled != 'true' &&
-      !Directory('${xdg('XDG_DATA_HOME', '.local/share')}/kwin/scripts/maprisma-tiling').existsSync() &&
-      !Directory('$systemData/kwin/scripts/maprisma-tiling').existsSync()) {
-    return false;
-  }
-  final floating = (value('Script-maprisma-tiling', 'floatingClasses') ?? 'com.maprisma.Launcher')
-      .split(',')
-      .map((c) => c.trim().toLowerCase());
-  return !floating.contains(appId.toLowerCase());
 }

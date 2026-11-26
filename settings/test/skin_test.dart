@@ -8,7 +8,7 @@ import 'package:maprisma_narrator/bridge.dart';
 import 'package:maprisma_narrator/look.dart';
 import 'package:maprisma_narrator/main.dart';
 import 'package:maprisma_narrator/skin.dart';
-import 'package:maprisma_narrator/window_style.dart';
+import 'package:maprisma_ui/window_style.dart';
 
 class _Bridge extends Bridge {
   _Bridge() : super(script: '/dev/null');
