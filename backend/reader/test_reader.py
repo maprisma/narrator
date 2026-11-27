@@ -386,6 +386,23 @@ class PinnedWindowTests(unittest.TestCase):
             self.assertEqual(subject.turn_retries, 0)
             self.assertIsNone(subject.page_turned_at)
 
+    def test_unchanged_text_after_retries_waits_for_a_manual_turn(self):
+        import time
+        from reader import Reader
+        subject = SimpleNamespace(status='Turning to next page…', page_turned_at=time.monotonic() - 3.5,
+            turn_retries=2, is_speaking=lambda: False, do_page_turn=Mock(), update=Mock(),
+            pdf_turned_at=None, last_text='Same words on this page', candidate='', scanning=True,
+            image_candidate=b'b', ocr_image=b'a')
+        subject.page_turn_missed = lambda: Reader.page_turn_missed(subject)
+        with patch('reader.visible_ocr', return_value=('Same words on this page', [])), \
+                patch('reader.Path.read_text', return_value=''), patch('reader.desktop_notify') as notify:
+            Reader.recognized(subject, 0, '', '')
+        subject.do_page_turn.assert_not_called()
+        subject.update.assert_called_once_with('Turn the page to go on')
+        notify.assert_called_once()
+        self.assertEqual(subject.turn_retries, 0)
+        self.assertIsNone(subject.page_turned_at)
+
     def test_waiting_for_a_manual_turn_scans_even_with_follow_off(self):
         from reader import Reader
         subject = SimpleNamespace(enabled=True, paused=False, scanning=False, menu=Mock(),

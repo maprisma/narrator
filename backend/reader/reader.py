@@ -772,8 +772,13 @@ class Reader(QObject):
             task.cancel()
         self.scanning = False
         self.target = self.last_text = self.candidate = ''
+        self.target_title = self.target_class = ''
         self.pending_window = None
         self.image_candidate = self.ocr_image = None
+        self.capture_stable = False
+        self.page_turned_at = None
+        self.pdf_turned_at = None
+        self.turn_retries = 0
         self.update('Looking for text…' if self.enabled else 'Off')
         if notify or was != self.enabled:
             msg = 'Maprisma Narrator: ON' if self.enabled else 'Maprisma Narrator: OFF'
@@ -798,6 +803,10 @@ class Reader(QObject):
                 # Read the window that has the focus now instead of the pinned one.
                 self.target = ''
             self.image_candidate = self.ocr_image = None
+            self.capture_stable = False
+            self.page_turned_at = None
+            self.pdf_turned_at = None
+            self.turn_retries = 0
             self.stop_speech()
             self.paused = False
             self.last_text = self.candidate = ''
@@ -1203,12 +1212,17 @@ class Reader(QObject):
                 return
             if getattr(self, 'status', '') == 'Turning to next page…' and not self.is_speaking():
                 page_turned = getattr(self, 'page_turned_at', None)
-                if page_turned and time.monotonic() - page_turned >= 1.2 and getattr(self, 'turn_retries', 0) < 2:
-                    self.turn_retries = getattr(self, 'turn_retries', 0) + 1
-                    self.page_turned_at = time.monotonic()
-                    print(f'Reader retrying page turn ({self.turn_retries}/2): text unchanged',
-                          file=sys.stderr, flush=True)
-                    self.do_page_turn()
+                if page_turned and time.monotonic() - page_turned >= 1.2:
+                    retries = getattr(self, 'turn_retries', 0)
+                    if retries < 2:
+                        self.turn_retries = retries + 1
+                        self.page_turned_at = time.monotonic()
+                        print(f'Reader retrying page turn ({self.turn_retries}/2): text unchanged',
+                              file=sys.stderr, flush=True)
+                        self.do_page_turn()
+                        return
+                    if time.monotonic() - page_turned >= 3:
+                        self.page_turn_missed()
                 return
             if getattr(self, 'status', '') == 'Waiting for the reading window' and not self.is_speaking():
                 self.on_page_finished()
